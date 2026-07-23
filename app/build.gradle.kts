@@ -3,8 +3,9 @@ import java.io.File
 import java.util.Properties
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.InputDirectory
-import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 
 plugins {
@@ -16,13 +17,13 @@ abstract class GenerateRulexDbTask : DefaultTask() {
     @get:InputDirectory
     abstract val sourceDir: DirectoryProperty
 
-    @get:OutputDirectory
-    abstract val outputDir: DirectoryProperty
+    @get:OutputFile
+    abstract val outputFile: RegularFileProperty
 
     @TaskAction
     fun generate() {
         val source = sourceDir.get().asFile
-        val output = outputDir.file("rulex/rulex.db").get().asFile
+        val output = outputFile.get().asFile
         output.parentFile.mkdirs()
 
         val sections = listOf(
@@ -139,24 +140,28 @@ if (keystorePropertiesFile.exists()) {
 val generatedRulexAssetsDir = layout.buildDirectory.dir("generated/rulexAssets")
 val generateRulexDb by tasks.registering(GenerateRulexDbTask::class) {
     sourceDir.set(layout.projectDirectory.dir("src/main/cpp/third_party/rulex/data"))
-    outputDir.set(generatedRulexAssetsDir)
+    outputFile.set(generatedRulexAssetsDir.map { it.file("rulex/rulex.db") })
 }
 
 android {
     namespace = "ru.hlebushek.RuTTS"
     compileSdk = 35
+    ndkVersion = "21.4.7075529"
 
     defaultConfig {
         applicationId = "ru.hlebushek.RuTTS"
-        minSdk = 30
-        targetSdk = 35
+        minSdk = 16
+        targetSdk = 29
         versionCode = 6
         versionName = "0.6"
 
         externalNativeBuild {
             cmake {
-                arguments += listOf("-DANDROID_STL=c++_static")
-                cppFlags += listOf("-std=c++20")
+                arguments += listOf(
+                    "-DANDROID_STL=c++_static",
+                    "-DANDROID_LD=lld"
+                )
+                cppFlags += listOf("-std=c++17")
             }
         }
     }
@@ -176,11 +181,6 @@ android {
     }
 
     buildTypes {
-        debug {
-            applicationIdSuffix = ".debug"
-            versionNameSuffix = "-debug"
-        }
-
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -194,10 +194,6 @@ android {
         }
     }
 
-    buildFeatures {
-        buildConfig = true
-    }
-
     flavorDimensions += "distribution"
 
     productFlavors {
@@ -206,15 +202,6 @@ android {
             ndk {
                 abiFilters += listOf("armeabi-v7a", "arm64-v8a")
             }
-        }
-    }
-
-    packaging {
-        dex {
-            useLegacyPackaging = true
-        }
-        jniLibs {
-            useLegacyPackaging = true
         }
     }
 
@@ -235,29 +222,28 @@ android {
     }
 
     sourceSets {
-        getByName("main").assets.srcDir(generateRulexDb.flatMap { it.outputDir })
+        getByName("main").assets.srcDir(generatedRulexAssetsDir)
+    }
+
+    lint {
+        disable += "ExpiredTargetSdkVersion"
     }
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("androidx.activity:activity-ktx:1.9.1")
-    implementation("androidx.fragment:fragment-ktx:1.8.2")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.3")
+    implementation("androidx.core:core-ktx:1.10.1")
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("androidx.fragment:fragment:1.5.7")
     implementation("androidx.preference:preference-ktx:1.2.1")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
-    implementation("com.google.android.material:material:1.12.0")
+    implementation("com.google.android.material:material:1.4.0")
     implementation("io.michaelrocks:libphonenumber-android:8.13.55")
     testImplementation("junit:junit:4.13.2")
 }
 
 tasks.configureEach {
-    val taskName = name.lowercase()
-    if (
-        (taskName.startsWith("merge") && taskName.endsWith("assets")) ||
-        taskName.contains("lint")
-    ) {
+    if ((name.startsWith("merge") && name.endsWith("Assets")) ||
+        name.contains("LintVital", ignoreCase = true)) {
         dependsOn(generateRulexDb)
     }
 }

@@ -1,5 +1,6 @@
 package ru.hlebushek.RuTTS.ui.settings
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
@@ -31,6 +32,7 @@ class EngineDataActivity : Activity() {
         setResult(TextToSpeech.Engine.CHECK_VOICE_DATA_PASS, result)
     }
 
+    @SuppressLint("InlinedApi")
     private fun handleSampleText() {
         val result = Intent().apply {
             putExtra(TextToSpeech.Engine.EXTRA_SAMPLE_TEXT, getString(R.string.tts_sample_text))

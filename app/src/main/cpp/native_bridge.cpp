@@ -1,10 +1,5 @@
 #include <jni.h>
 
-#if defined(RUTTS_TRACE_LATENCY)
-#include <android/log.h>
-#include <time.h>
-#endif
-
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -36,23 +31,6 @@ int NormalizeInterpolationMultiplier(int value) {
     if (value > 2) return 4;
     return 2;
 }
-
-#if defined(RUTTS_TRACE_LATENCY)
-long long ElapsedRealtimeMs() {
-    timespec timestamp{};
-    clock_gettime(CLOCK_BOOTTIME, &timestamp);
-    return static_cast<long long>(timestamp.tv_sec) * 1000LL + timestamp.tv_nsec / 1000000LL;
-}
-
-void LogLatency(const char* stage) {
-    __android_log_print(
-        ANDROID_LOG_INFO,
-        "RuTTS.Latency",
-        "%s elapsedRealtimeMs=%lld",
-        stage,
-        ElapsedRealtimeMs());
-}
-#endif
 
 class Pcm8ToPcm16Adapter {
 public:
@@ -427,20 +405,10 @@ Java_ru_hlebushek_RuTTS_engine_NativeRutts_nativeSynthesizeStreamingRaw(
 
     const std::string text = ReadBytes(env, textArray);
     const std::vector<int> config = ReadConfig(env, configArray);
-#if defined(RUTTS_TRACE_LATENCY)
-    LogLatency("native streaming entered");
-#endif
-    bool firstChunk = true;
     const auto emitChunk = [&](const std::uint8_t* data, size_t size) -> bool {
         if (!data || size == 0 || size % sizeof(std::int16_t) != 0) {
             return size == 0;
         }
-#if defined(RUTTS_TRACE_LATENCY)
-        if (firstChunk) {
-            LogLatency("first PCM16 callback");
-            firstChunk = false;
-        }
-#endif
         env->SetByteArrayRegion(
             reusableChunk,
             0,

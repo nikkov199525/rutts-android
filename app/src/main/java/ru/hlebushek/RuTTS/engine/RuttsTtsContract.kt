@@ -6,7 +6,7 @@ import ru.hlebushek.RuTTS.config.RuttsConfig
 
 object RuttsTtsContract {
     val locale: Locale = Locale("ru", "RU")
-    val voiceName: String = locale.toLanguageTag()
+    val voiceName: String = "${locale.language}-${locale.country}"
     val checkVoiceId: String = "${locale.getISO3Language()}-${locale.getISO3Country()}"
 
     val iso3Language: String = locale.getISO3Language()

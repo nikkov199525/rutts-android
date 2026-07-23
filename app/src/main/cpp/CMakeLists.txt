@@ -3,7 +3,7 @@ project(rutts_android LANGUAGES C CXX)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 
@@ -73,10 +73,6 @@ target_compile_options(rutts_android PRIVATE
     -fvisibility=hidden
     -fvisibility-inlines-hidden
 )
-
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_definitions(rutts_android PRIVATE RUTTS_TRACE_LATENCY=1)
-endif()
 
 target_link_options(rutts_android PRIVATE
     -Wl,--gc-sections

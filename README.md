@@ -1,4 +1,4 @@
-﻿# rutts_android_test
+# rutts_android_legacy
 
 Тестовое Android-приложение `RuTTS` с package/application id `ru.hlebushek.RuTTS`, созданное отдельно от исходного SAPI-проекта.
 
@@ -34,24 +34,20 @@
 
 ## Сборка
 
-TTS-служба принимает любой язык интерфейса как fallback и сопоставляет его с
-единственным фактическим голосом `ru-RU`. Поэтому экранный диктор может
-инициализировать RuTTS при английском, украинском и других языках системы.
-
 Требуется:
 
 - Android Studio Hedgehog+ / Koala+ с Android SDK
 - JBR/JDK из Android Studio (проверено на встроенном JBR 21)
 - Android NDK, совместимый с AGP 8.5.x
 
-Открыть папку `rutts_android_test` как отдельный Android-проект и выполнить обычную сборку `app`.
+Открыть папку `rutts_android_legacy` как отдельный Android-проект и выполнить обычную сборку `app`.
 
 - `local.properties` в проект специально не хранится: Android Studio должна создать его под SDK конкретной машины.
 - зависимости Gradle/Maven подтягиваются обычным способом через Android Studio или стандартный Gradle user home на целевой машине.
 
 ## Статус
 
-- проект создан отдельно в `rutts_android_test`
+- проект создан отдельно в `rutts_android_legacy`
 - пакет/namespace переведён на `ru.hlebushek.RuTTS`
 - Gradle wrapper добавлен
 - release-сборка проверена локально

@@ -2,7 +2,6 @@
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import androidx.fragment.app.commit
 import com.google.android.material.appbar.MaterialToolbar
 import ru.hlebushek.RuTTS.R
 
@@ -17,9 +16,10 @@ class EngineSettingsActivity : AppCompatActivity(R.layout.activity_engine_settin
         toolbar.setNavigationOnClickListener { finish() }
 
         if (savedInstanceState == null) {
-            supportFragmentManager.commit {
-                replace(R.id.settingsContainer, RuttsSettingsFragment())
-            }
+            supportFragmentManager
+                .beginTransaction()
+                .replace(R.id.settingsContainer, RuttsSettingsFragment())
+                .commit()
         }
     }
 }

@@ -1,20 +1,19 @@
 package ru.hlebushek.RuTTS.engine
 
+import android.annotation.TargetApi
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
-import android.os.SystemClock
+import android.os.Build
 import android.speech.tts.SynthesisCallback
 import android.speech.tts.SynthesisRequest
 import android.speech.tts.TextToSpeech
 import android.speech.tts.TextToSpeechService
-import android.speech.tts.Voice
 import android.util.Log
-import kotlin.math.min
-import kotlin.math.roundToInt
-import ru.hlebushek.RuTTS.BuildConfig
 import ru.hlebushek.RuTTS.config.ConfigRepository
 import ru.hlebushek.RuTTS.config.RuntimeSettings
+import kotlin.math.min
+import kotlin.math.roundToInt
 import java.util.concurrent.atomic.AtomicLong
 
 class RuttsTextToSpeechService : TextToSpeechService() {
@@ -51,43 +50,6 @@ class RuttsTextToSpeechService : TextToSpeechService() {
         return onIsLanguageAvailable(lang, country, variant)
     }
 
-    override fun onGetVoices(): MutableList<Voice> {
-        return mutableListOf(
-            Voice(
-                RuttsTtsContract.voiceName,
-                RuttsTtsContract.locale,
-                Voice.QUALITY_NORMAL,
-                Voice.LATENCY_LOW,
-                false,
-                emptySet()
-            )
-        )
-    }
-
-    override fun onGetDefaultVoiceNameFor(lang: String, country: String, variant: String): String? {
-        return if (onIsLanguageAvailable(lang, country, variant) != TextToSpeech.LANG_NOT_SUPPORTED) {
-            RuttsTtsContract.voiceName
-        } else {
-            null
-        }
-    }
-
-    override fun onLoadVoice(voiceName: String): Int {
-        return if (voiceName == RuttsTtsContract.voiceName) {
-            TextToSpeech.SUCCESS
-        } else {
-            TextToSpeech.ERROR
-        }
-    }
-
-    override fun onIsValidVoiceName(voiceName: String): Int {
-        return if (voiceName == RuttsTtsContract.voiceName) {
-            TextToSpeech.SUCCESS
-        } else {
-            TextToSpeech.ERROR
-        }
-    }
-
     override fun onStop() {
         requestGeneration.incrementAndGet()
         NativeRutts.requestStop()
@@ -101,22 +63,22 @@ class RuttsTextToSpeechService : TextToSpeechService() {
         try {
             if (!NativeLibraryLoader.ensureLoaded()) {
                 Log.e(logTag, "native library unavailable: ${NativeLibraryLoader.diagnostic()}")
-                signalError(callback, requestId, TextToSpeech.ERROR_SYNTHESIS)
+                signalError(callback, requestId)
                 callbackFailed = true
                 return
             }
             if (!isRequestSupported(request)) {
                 Log.e(logTag, "request not supported")
-                signalError(callback, requestId, TextToSpeech.ERROR_SYNTHESIS)
+                signalError(callback, requestId)
                 callbackFailed = true
                 shouldCallDone = true
                 return
             }
 
-            val text = request.charSequenceText?.toString().orEmpty()
+            val text = extractRequestText(request)
             if (text.isBlank()) {
                 Log.e(logTag, "blank text")
-                signalError(callback, requestId, TextToSpeech.ERROR_INVALID_REQUEST)
+                signalError(callback, requestId)
                 callbackFailed = true
                 shouldCallDone = true
                 return
@@ -140,16 +102,7 @@ class RuttsTextToSpeechService : TextToSpeechService() {
                 config,
                 equalizerSettings.isFlat
             )
-            logLatency(
-                SystemClock.elapsedRealtimeNanos(),
-                "streaming decision direct=$directStreaming flat=${equalizerSettings.isFlat} " +
-                    "rateBoost=${config.useRateBoost} newRate=${config.useNewRateAlgorithm} " +
-                    "rulex=${config.useRulex} softResampling=${config.useSoftResampling} " +
-                    "interpolation=${config.interpolationMultiplier}"
-            )
             if (directStreaming) {
-                val directStartedAt = SystemClock.elapsedRealtimeNanos()
-                logLatency(directStartedAt, "direct request entered")
                 val maxChunkSize = androidChunkSize(callback)
                 val outputSampleRate = platformOutputSampleRate(config.outputSampleRate)
                 val streamingCallback = if (equalizerSettings.isFlat) {
@@ -158,7 +111,7 @@ class RuttsTextToSpeechService : TextToSpeechService() {
                     EqualizingSynthesisCallback(callback, outputSampleRate, equalizerSettings)
                 }
                 val segments = sourceSegments(text).iterator()
-                val startResult = streamingCallback.start(outputSampleRate, AudioFormat.ENCODING_PCM_16BIT, 1)
+                val startResult = callback.start(outputSampleRate, AudioFormat.ENCODING_PCM_16BIT, 1)
                 if (startResult != TextToSpeech.SUCCESS) return
                 shouldCallDone = true
                 var hasPreparedSegment = false
@@ -167,7 +120,6 @@ class RuttsTextToSpeechService : TextToSpeechService() {
                 while (true) {
                     val isLastSegment = !segments.hasNext()
                     if (!isActive(requestId)) return
-                    logLatency(directStartedAt, "text processing started segment=$index chars=${segment.length}")
                     val preparedSegment = textPreprocessor.prepare(
                         text = segment,
                         spellOut = runtimeSettings.spellOut,
@@ -175,7 +127,6 @@ class RuttsTextToSpeechService : TextToSpeechService() {
                         characters = characters,
                         singleCharacters = singleCharacters
                     )
-                    logLatency(directStartedAt, "text processing finished")
                     if (!isActive(requestId)) return
                     if (preparedSegment.isNotBlank()) {
                         hasPreparedSegment = true
@@ -193,7 +144,6 @@ class RuttsTextToSpeechService : TextToSpeechService() {
                             maxChunkSize
                         )
                         if (!completed) {
-                            logLatency(directStartedAt, "native streaming stopped segment=$index")
                             return
                         }
                     }
@@ -203,7 +153,7 @@ class RuttsTextToSpeechService : TextToSpeechService() {
                 }
                 if (!hasPreparedSegment && isActive(requestId)) {
                     Log.e(logTag, "prepared text is blank")
-                    signalError(callback, requestId, TextToSpeech.ERROR_SYNTHESIS)
+                    signalError(callback, requestId)
                     callbackFailed = true
                 }
                 return
@@ -222,7 +172,7 @@ class RuttsTextToSpeechService : TextToSpeechService() {
             }
             if (preparedText.isBlank()) {
                 Log.e(logTag, "prepared text is blank")
-                signalError(callback, requestId, TextToSpeech.ERROR_SYNTHESIS)
+                signalError(callback, requestId)
                 callbackFailed = true
                 shouldCallDone = true
                 return
@@ -235,7 +185,7 @@ class RuttsTextToSpeechService : TextToSpeechService() {
             }
             if (pcm.isEmpty()) {
                 Log.e(logTag, "native synth returned empty pcm")
-                signalError(callback, requestId, TextToSpeech.ERROR_SYNTHESIS)
+                signalError(callback, requestId)
                 callbackFailed = true
                 shouldCallDone = true
                 return
@@ -251,12 +201,12 @@ class RuttsTextToSpeechService : TextToSpeechService() {
             writeAudio(callback, pcm, pcm.size, androidChunkSize(callback), requestId)
         } catch (_: InterruptedException) {
             Log.e(logTag, "InterruptedException")
-            signalError(callback, requestId, TextToSpeech.ERROR_OUTPUT)
+            signalError(callback, requestId)
             callbackFailed = true
             shouldCallDone = true
         } catch (e: Exception) {
             Log.e(logTag, "Exception during synthesis", e)
-            signalError(callback, requestId, TextToSpeech.ERROR_SYNTHESIS)
+            signalError(callback, requestId)
             callbackFailed = true
             shouldCallDone = true
         } finally {
@@ -267,7 +217,7 @@ class RuttsTextToSpeechService : TextToSpeechService() {
     }
 
     private fun isRequestSupported(request: SynthesisRequest): Boolean {
-        val voiceName = request.voiceName?.takeIf { it.isNotBlank() }
+        val voiceName = extractRequestVoiceName(request)
         if (voiceName != null && voiceName != RuttsTtsContract.voiceName) {
             return false
         }
@@ -276,6 +226,25 @@ class RuttsTextToSpeechService : TextToSpeechService() {
         val country = request.country?.takeIf { it.isNotBlank() }
         val variant = request.variant?.takeIf { it.isNotBlank() }
         return onIsLanguageAvailable(language, country, variant) != TextToSpeech.LANG_NOT_SUPPORTED
+    }
+
+    private fun extractRequestText(request: SynthesisRequest): String {
+        val charSequenceText = runCatching {
+            SynthesisRequest::class.java.getMethod("getCharSequenceText").invoke(request) as? CharSequence
+        }.getOrNull()
+        if (!charSequenceText.isNullOrBlank()) {
+            return charSequenceText.toString()
+        }
+
+        return runCatching {
+            SynthesisRequest::class.java.getMethod("getText").invoke(request) as? String
+        }.getOrNull().orEmpty()
+    }
+
+    private fun extractRequestVoiceName(request: SynthesisRequest): String? {
+        return runCatching {
+            SynthesisRequest::class.java.getMethod("getVoiceName").invoke(request) as? String
+        }.getOrNull()?.takeIf { it.isNotBlank() }
     }
 
     private fun extractVolumePercent(request: SynthesisRequest, defaultVolumePercent: Int): Int {
@@ -368,27 +337,32 @@ class RuttsTextToSpeechService : TextToSpeechService() {
             ?: fallbackSampleRate
     }
 
-    private fun signalError(callback: SynthesisCallback, requestId: Long, errorCode: Int) {
-        if (isActive(requestId)) {
-            callback.error(errorCode)
-        }
-    }
-
-    private fun logLatency(startedAtNanos: Long, stage: String) {
-        if (!BuildConfig.DEBUG) {
-            return
-        }
-        val now = SystemClock.elapsedRealtimeNanos()
-        Log.i(
-            "RuTTS.Latency",
-            "$stage elapsedMs=${(now - startedAtNanos) / 1_000_000.0} elapsedRealtimeMs=${now / 1_000_000L}"
-        )
-    }
-
     private fun scalePercent(baseValue: Int, systemPercent: Int, minValue: Int, maxValue: Int): Int {
         return ((baseValue.coerceAtLeast(0) * systemPercent.coerceAtLeast(0)) / 100.0f)
             .roundToInt()
             .coerceIn(minValue, maxValue)
+    }
+
+    private fun signalError(callback: SynthesisCallback, requestId: Long) {
+        if (!isActive(requestId)) {
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            signalErrorApi21(callback)
+        } else {
+            callback.error()
+        }
+    }
+
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    private fun signalErrorApi21(callback: SynthesisCallback) {
+        callback.error(resolveApi21ErrorCode())
+    }
+
+    private fun resolveApi21ErrorCode(): Int {
+        return runCatching {
+            TextToSpeech::class.java.getField("ERROR_SYNTHESIS").getInt(null)
+        }.getOrDefault(TextToSpeech.ERROR)
     }
 
     companion object {

@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "RuTTS"
+rootProject.name = "RuTTS Legacy"
 include(":app")
