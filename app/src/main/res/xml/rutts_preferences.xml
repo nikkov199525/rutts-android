@@ -1,0 +1,250 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+        app:key="category_general"
+        app:title="@string/settings_category_general">
+
+        <CheckBoxPreference
+            app:defaultValue="true"
+            app:key="use_rulex"
+            app:title="@string/pref_use_rulex" />
+
+        <CheckBoxPreference
+            app:defaultValue="false"
+            app:key="read_emojis"
+            app:title="@string/pref_read_emojis" />
+
+        <CheckBoxPreference
+            app:defaultValue="false"
+            app:key="read_phone_numbers"
+            app:title="@string/pref_read_phone_numbers" />
+
+        <CheckBoxPreference
+            app:defaultValue="false"
+            app:key="use_alternative_voice"
+            app:title="@string/pref_use_alternative_voice" />
+
+        <CheckBoxPreference
+            app:defaultValue="false"
+            app:key="use_rate_boost"
+            app:title="@string/pref_use_rate_boost" />
+
+        <CheckBoxPreference
+            app:defaultValue="false"
+            app:key="use_new_rate_algorithm"
+            app:title="@string/pref_use_new_rate_algorithm" />
+
+        <EditTextPreference
+            app:defaultValue="100"
+            app:key="runtime_speech_rate"
+            app:title="@string/pref_runtime_speech_rate"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:defaultValue="100"
+            app:key="runtime_pitch"
+            app:title="@string/pref_runtime_pitch"
+            app:useSimpleSummaryProvider="true" />
+
+        <SeekBarPreference
+            app:defaultValue="100"
+            app:key="runtime_volume"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:title="@string/pref_runtime_volume"
+            android:max="100" />
+
+        <Preference
+            app:key="open_equalizer_settings"
+            app:summary="@string/equalizer_settings_summary"
+            app:title="@string/equalizer_settings_title" />
+
+        <EditTextPreference
+            app:defaultValue="10000"
+            app:key="samples_per_sec"
+            app:title="@string/pref_samples_per_sec"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:defaultValue="100"
+            app:key="intonation"
+            app:title="@string/pref_intonation"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="category_gaps"
+        app:title="@string/settings_category_gaps">
+
+        <SeekBarPreference
+            app:defaultValue="100"
+            app:key="general_gap_factor"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:title="@string/pref_general_gap_factor"
+            android:max="5000" />
+
+        <SeekBarPreference
+            app:defaultValue="100"
+            app:key="comma_gap_factor"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:title="@string/pref_comma_gap_factor"
+            android:max="750" />
+
+        <SeekBarPreference
+            app:defaultValue="100"
+            app:key="dot_gap_factor"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:title="@string/pref_dot_gap_factor"
+            android:max="500" />
+
+        <SeekBarPreference
+            app:defaultValue="100"
+            app:key="semicolon_gap_factor"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:title="@string/pref_semicolon_gap_factor"
+            android:max="600" />
+
+        <SeekBarPreference
+            app:defaultValue="100"
+            app:key="colon_gap_factor"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:title="@string/pref_colon_gap_factor"
+            android:max="600" />
+
+        <SeekBarPreference
+            app:defaultValue="100"
+            app:key="question_gap_factor"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:title="@string/pref_question_gap_factor"
+            android:max="375" />
+
+        <SeekBarPreference
+            app:defaultValue="100"
+            app:key="exclamation_gap_factor"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:title="@string/pref_exclamation_gap_factor"
+            android:max="300" />
+
+        <SeekBarPreference
+            app:defaultValue="100"
+            app:key="intonational_gap_factor"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:title="@string/pref_intonational_gap_factor"
+            android:max="1000" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="category_advanced"
+        app:title="@string/settings_category_advanced">
+
+        <CheckBoxPreference
+            app:defaultValue="false"
+            app:key="dec_sep_point"
+            app:title="@string/pref_dec_sep_point" />
+
+        <CheckBoxPreference
+            app:defaultValue="true"
+            app:key="dec_sep_comma"
+            app:title="@string/pref_dec_sep_comma" />
+
+        <ListPreference
+            app:defaultValue="1"
+            app:entries="@array/interpolation_multiplier_entries"
+            app:entryValues="@array/interpolation_multiplier_values"
+            app:key="interpolation_multiplier"
+            app:title="@string/pref_interpolation_multiplier"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="0"
+            app:entries="@array/interpolation_algorithm_entries"
+            app:entryValues="@array/interpolation_algorithm_values"
+            app:key="interpolation_algorithm"
+            app:title="@string/pref_interpolation_algorithm"
+            app:useSimpleSummaryProvider="true" />
+
+        <CheckBoxPreference
+            app:defaultValue="false"
+            app:key="use_soft_resampling"
+            app:title="@string/pref_use_soft_resampling" />
+
+        <SeekBarPreference
+            app:defaultValue="0"
+            app:key="silence_at_begin"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:title="@string/pref_silence_at_begin"
+            android:max="100" />
+
+        <SeekBarPreference
+            app:defaultValue="0"
+            app:key="silence_at_end"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:title="@string/pref_silence_at_end"
+            android:max="100" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="category_dictionaries"
+        app:title="@string/settings_category_dictionaries">
+
+        <Preference
+            app:key="edit_characters"
+            app:summary="@string/settings_characters_summary"
+            app:title="@string/settings_characters" />
+
+        <Preference
+            app:key="edit_single_characters"
+            app:summary="@string/settings_single_characters_summary"
+            app:title="@string/settings_single_characters" />
+
+        <Preference
+            app:key="apply_speaking_mouse_profile"
+            app:summary="@string/settings_speaking_mouse_summary"
+            app:title="@string/settings_speaking_mouse" />
+
+        <Preference
+            app:key="restore_defaults"
+            app:summary="@string/settings_restore_defaults_summary"
+            app:title="@string/settings_restore_defaults" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="category_appearance"
+        app:title="@string/settings_category_appearance">
+
+        <ListPreference
+            app:defaultValue="system"
+            app:entries="@array/app_theme_entries"
+            app:entryValues="@array/app_theme_values"
+            app:key="app_theme"
+            app:title="@string/pref_app_theme"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="category_settings_management"
+        app:title="@string/settings_category_management">
+
+        <Preference
+            app:key="backup_settings"
+            app:title="@string/settings_backup" />
+
+        <Preference
+            app:key="restore_settings"
+            app:title="@string/settings_restore" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

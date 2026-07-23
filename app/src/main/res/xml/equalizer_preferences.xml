@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+        app:key="category_equalizer"
+        app:title="@string/equalizer_settings_title">
+
+        <SeekBarPreference
+            app:defaultValue="0"
+            app:key="eq_bass"
+            app:min="-12"
+            app:showSeekBarValue="true"
+            app:summary="@string/pref_eq_band_summary"
+            app:title="@string/pref_eq_bass"
+            android:max="12" />
+
+        <SeekBarPreference
+            app:defaultValue="0"
+            app:key="eq_mid"
+            app:min="-12"
+            app:showSeekBarValue="true"
+            app:summary="@string/pref_eq_band_summary"
+            app:title="@string/pref_eq_mid"
+            android:max="12" />
+
+        <SeekBarPreference
+            app:defaultValue="0"
+            app:key="eq_treble"
+            app:min="-12"
+            app:showSeekBarValue="true"
+            app:summary="@string/pref_eq_band_summary"
+            app:title="@string/pref_eq_treble"
+            android:max="12" />
+
+        <Preference
+            app:key="reset_equalizer"
+            app:summary="@string/equalizer_reset_summary"
+            app:title="@string/equalizer_reset" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

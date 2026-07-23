@@ -1,0 +1,19 @@
+[submodule "app/src/main/cpp/third_party/sonic"]
+	path = app/src/main/cpp/third_party/sonic
+	url = https://github.com/waywardgeek/sonic.git
+[submodule "app/src/main/cpp/third_party/lmdb"]
+	path = app/src/main/cpp/third_party/lmdb
+	url = https://github.com/LMDB/lmdb.git
+[submodule "app/src/main/cpp/third_party/pcre2"]
+	path = app/src/main/cpp/third_party/pcre2
+	url = https://github.com/PCRE2Project/pcre2.git
+[submodule "app/src/main/cpp/third_party/rulex"]
+	path = app/src/main/cpp/third_party/rulex
+	url = https://gitverse.ru/kvark128/rulex.git
+[submodule "app/src/main/cpp/third_party/ru_tts"]
+	path = app/src/main/cpp/third_party/ru_tts
+	url = https://github.com/nikkov199525/ru_tts.git
+	branch = main
+[submodule "app/src/main/cpp/third_party/libsamplerate"]
+	path = app/src/main/cpp/third_party/libsamplerate
+	url = https://github.com/nikkov199525/libsamplerate

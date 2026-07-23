@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
+    <application>
+        <receiver
+            android:name=".debug.TtsProbeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="ru.hlebushek.RuTTS.DEBUG_SPEAK" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".debug.RulexProbeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="ru.hlebushek.RuTTS.DEBUG_RULEX" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>

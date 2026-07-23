@@ -1,0 +1,24 @@
+# ---- Build outputs ----
+/build/
+/app/build/
+.gradle/
+.cxx/
+.externalNativeBuild/
+*.apk
+*.aab
+
+# ---- IDE ----
+.idea/
+*.iml
+.vscode/
+
+# ---- Local / machine specific ----
+local.properties
+
+# ---- Signing secrets — NEVER commit ----
+keystore/
+keystore.properties
+
+# ---- OS ----
+.DS_Store
+Thumbs.db

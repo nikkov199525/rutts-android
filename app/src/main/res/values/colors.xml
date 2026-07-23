@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="rutts_primary">#005B8F</color>
+    <color name="rutts_primary_container">#D4ECFF</color>
+    <color name="rutts_secondary">#7A4B00</color>
+    <color name="rutts_background">#F8FAFC</color>
+    <color name="rutts_surface">#FFFFFF</color>
+    <color name="rutts_surface_variant">#E6EDF5</color>
+    <color name="rutts_on_primary">#FFFFFF</color>
+    <color name="rutts_on_primary_container">#001D31</color>
+    <color name="rutts_on_secondary">#FFFFFF</color>
+    <color name="rutts_on_surface">#111827</color>
+    <color name="rutts_on_surface_variant">#334155</color>
+    <color name="rutts_outline">#64748B</color>
+</resources>

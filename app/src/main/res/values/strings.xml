@@ -1,0 +1,84 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RuTTS</string>
+
+    <string name="settings_category_general">Основное</string>
+    <string name="settings_category_gaps">Паузы</string>
+    <string name="settings_category_advanced">Дополнительно</string>
+    <string name="settings_category_dictionaries">Замены символов</string>
+    <string name="settings_category_appearance">Внешний вид</string>
+    <string name="settings_category_management">Управление настройками</string>
+
+    <string name="pref_use_rulex">Использовать rulex</string>
+    <string name="pref_read_emojis">Читать эмодзи</string>
+    <string name="pref_read_phone_numbers">Читать телефонные номера</string>
+    <string name="pref_use_alternative_voice">Использовать альтернативный голос</string>
+    <string name="pref_use_rate_boost">Использовать ускорение синтеза (x2)</string>
+    <string name="pref_use_new_rate_algorithm">Новый алгоритм изменения скорости</string>
+    <string name="pref_runtime_speech_rate">Базовая скорость</string>
+    <string name="pref_runtime_pitch">Базовый тон</string>
+    <string name="pref_runtime_volume">Базовая громкость</string>
+    <string name="equalizer_settings_title">Настройка эквалайзера</string>
+    <string name="equalizer_settings_summary">Открыть низкие, средние и высокие частоты.</string>
+    <string name="pref_eq_bass">Низкие частоты</string>
+    <string name="pref_eq_mid">Средние частоты</string>
+    <string name="pref_eq_treble">Высокие частоты</string>
+    <string name="pref_eq_band_summary">Диапазон от -12 до +12 дБ.</string>
+    <string name="equalizer_reset">Сбросить эквалайзер</string>
+    <string name="equalizer_reset_summary">Вернуть все полосы к 0 дБ.</string>
+    <string name="equalizer_reset_done">Эквалайзер сброшен.</string>
+    <string name="pref_app_theme">Тема приложения</string>
+    <string name="pref_samples_per_sec">Частота дискретизации</string>
+    <string name="pref_intonation">Интонация речи</string>
+    <string name="pref_general_gap_factor">Общая пауза между фразами</string>
+    <string name="pref_comma_gap_factor">Пауза после запятой</string>
+    <string name="pref_dot_gap_factor">Пауза после точки</string>
+    <string name="pref_semicolon_gap_factor">Пауза после точки с запятой</string>
+    <string name="pref_colon_gap_factor">Пауза после двоеточия</string>
+    <string name="pref_question_gap_factor">Пауза после вопросительного знака</string>
+    <string name="pref_exclamation_gap_factor">Пауза после восклицательного знака</string>
+    <string name="pref_intonational_gap_factor">Интонационная пауза</string>
+    <string name="pref_dec_sep_point">Использовать точку как десятичный разделитель</string>
+    <string name="pref_dec_sep_comma">Использовать запятую как десятичный разделитель</string>
+    <string name="pref_interpolation_multiplier">Множитель интерполяции</string>
+    <string name="pref_interpolation_algorithm">Алгоритм интерполяции</string>
+    <string name="pref_use_soft_resampling">Мягкое новое звучание (экспериментальная настройка)</string>
+    <string name="pref_silence_at_begin">Тишина в начале (мс)</string>
+    <string name="pref_silence_at_end">Тишина в конце (мс)</string>
+
+    <string name="settings_characters">Замены символов</string>
+    <string name="settings_characters_summary">Открыть список фонетических замен символов.</string>
+    <string name="settings_single_characters">Одиночные замены символов</string>
+    <string name="settings_single_characters_summary">Открыть список названий символов для посимвольного чтения.</string>
+    <string name="settings_speaking_mouse">Звучание примерно как у Speaking mouse</string>
+    <string name="settings_speaking_mouse_summary">Сделать звучание похожим на звучание синтезатора Speaking mouse (платный вариант- Mymouse).</string>
+    <string name="settings_speaking_mouse_applied">Параметры Speaking mouse применены.</string>
+    <string name="settings_restore_defaults">Восстановить по умолчанию</string>
+    <string name="settings_restore_defaults_summary">Сбросить параметры и замены символов к значениям по умолчанию.</string>
+    <string name="settings_restore_defaults_message">Сбросить все параметры и замены символов к значениям по умолчанию?</string>
+    <string name="settings_backup">Резервирование настроек</string>
+    <string name="settings_restore">Восстановление настроек</string>
+    <string name="settings_backup_done">Настройки сохранены.</string>
+    <string name="settings_backup_failed">Не удалось сохранить настройки.</string>
+    <string name="settings_restore_done">Настройки восстановлены и применены.</string>
+    <string name="settings_restore_failed">Не удалось восстановить настройки из выбранного файла.</string>
+    <string name="settings_invalid_number">Нужно ввести число от %1$d до %2$d.</string>
+    <string name="engine_settings_title">Настройки RuTTS</string>
+    <string name="tts_sample_text">Привет. Это системный голос RuTTS.</string>
+    <string name="navigation_back">Вернуться назад</string>
+
+    <string name="dictionary_empty">Записей пока нет.</string>
+    <string name="dictionary_add">Добавить запись</string>
+    <string name="dictionary_symbol">Символ</string>
+    <string name="dictionary_replacement">Замена</string>
+    <string name="dictionary_save">Сохранить</string>
+    <string name="dictionary_delete">Удалить</string>
+    <string name="dictionary_cancel">Отмена</string>
+    <string name="dictionary_add_title">Новая запись</string>
+    <string name="dictionary_edit_title">Редактирование записи</string>
+    <string name="dictionary_duplicate_key">Запись с таким символом уже есть.</string>
+    <string name="dictionary_invalid_key">Символ не должен быть пустым и содержать = или перевод строки.</string>
+    <string name="dictionary_invalid_value">Замена не должна быть пустой.</string>
+    <string name="dictionary_restore_defaults_message">Восстановить словарь по умолчанию?</string>
+</resources>
+
