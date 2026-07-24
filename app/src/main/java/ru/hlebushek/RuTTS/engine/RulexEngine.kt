@@ -1,6 +1,7 @@
 package ru.hlebushek.RuTTS.engine
 
 import android.content.Context
+import android.os.Build
 import ru.hlebushek.RuTTS.config.AppStorage
 import java.io.File
 import java.nio.charset.Charset
@@ -64,7 +65,13 @@ class RulexEngine(context: Context) {
             val fingerprint = MessageDigest.getInstance("SHA-256")
                 .digest(seed)
                 .joinToString("") { byte -> "%02x".format(byte) }
-            val cacheDirectory = File(appContext.noBackupFilesDir, "rulex")
+            // noBackupFilesDir появился в API 21; на более старых берём filesDir.
+            val baseDir = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                appContext.noBackupFilesDir
+            } else {
+                appContext.filesDir
+            }
+            val cacheDirectory = File(baseDir, "rulex")
             check(cacheDirectory.exists() || cacheDirectory.mkdirs()) {
                 "Failed to create Rulex cache directory"
             }

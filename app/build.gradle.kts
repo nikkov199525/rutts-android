@@ -150,8 +150,8 @@ android {
         applicationId = "ru.hlebushek.RuTTS"
         minSdk = 30
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.6"
+        versionCode = 7
+        versionName = "0.7"
 
         externalNativeBuild {
             cmake {
@@ -236,6 +236,19 @@ android {
 
     sourceSets {
         getByName("main").assets.srcDir(generateRulexDb.flatMap { it.outputDir })
+    }
+
+    lint {
+        // targetSdk зафиксирован осознанно — не гонимся за каждым новым API.
+        disable += "OldTargetApi"
+        // SDK_INT-проверки Direct Boot/хранилища общие с legacy-модулем
+        // (minSdk 16), где они обязательны; при minSdk 30 читаются как
+        // «всегда истина», но должны оставаться ради legacy-сборки.
+        disable += "ObsoleteSdkInt"
+        // Собираем только ARM (armeabi-v7a, arm64-v8a) — ChromeOS x86_64 не цель.
+        disable += "ChromeOsAbiSupport"
+        // Overdraw корневых фонов — микро-подсказка производительности, не баг.
+        disable += "Overdraw"
     }
 }
 

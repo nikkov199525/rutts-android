@@ -22,10 +22,8 @@ if not exist "%JAVA_HOME%\bin\java.exe" (
     exit /b 1
 )
 
-if not defined ANDROID_HOME (
-    if exist "C:\AndroidSdk\platforms\" set "ANDROID_HOME=C:\AndroidSdk"
-)
-
+rem Use the default Android SDK location. Missing SDK components (platforms,
+rem build-tools, NDK, CMake) are downloaded by Gradle into this same folder.
 if not defined ANDROID_HOME (
     if exist "%LOCALAPPDATA%\Android\Sdk\platforms\" set "ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk"
 )
@@ -34,9 +32,14 @@ if not defined ANDROID_HOME if defined ANDROID_SDK_ROOT (
     if exist "%ANDROID_SDK_ROOT%\platforms\" set "ANDROID_HOME=%ANDROID_SDK_ROOT%"
 )
 
-if not defined ANDROID_SDK_ROOT (
-    if defined ANDROID_HOME set "ANDROID_SDK_ROOT=%ANDROID_HOME%"
+if not defined ANDROID_HOME (
+    echo [ERROR] Android SDK not found at %LOCALAPPDATA%\Android\Sdk.
+    echo [ERROR] Install it via Android Studio or set ANDROID_HOME.
+    popd >nul
+    exit /b 1
 )
+
+if not defined ANDROID_SDK_ROOT set "ANDROID_SDK_ROOT=%ANDROID_HOME%"
 
 set "PATH=%JAVA_HOME%\bin;%PATH%"
 
