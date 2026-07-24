@@ -3,6 +3,7 @@ package ru.hlebushek.RuTTS.ui.theme
 import android.content.Context
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.preference.PreferenceManager
+import ru.hlebushek.RuTTS.config.AppStorage
 import ru.hlebushek.RuTTS.config.PreferenceKeys
 
 object AppTheme {
@@ -12,7 +13,7 @@ object AppTheme {
 
     fun applySaved(context: Context) {
         val value = PreferenceManager
-            .getDefaultSharedPreferences(context.applicationContext)
+            .getDefaultSharedPreferences(AppStorage.preferenceContext(context))
             .getString(PreferenceKeys.APP_THEME, SYSTEM)
         apply(value)
     }

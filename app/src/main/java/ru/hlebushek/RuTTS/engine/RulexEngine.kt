@@ -1,6 +1,7 @@
 package ru.hlebushek.RuTTS.engine
 
 import android.content.Context
+import ru.hlebushek.RuTTS.config.AppStorage
 import java.io.File
 import java.nio.charset.Charset
 import java.security.MessageDigest
@@ -8,7 +9,10 @@ import java.util.LinkedHashMap
 import java.util.Locale
 
 class RulexEngine(context: Context) {
-    private val appContext = context.applicationContext
+    // device-protected контекст: кэш rulex должен быть доступен в Direct Boot.
+    // Ассеты (rulex.db в APK) читаются из любого контекста; noBackupFilesDir
+    // здесь указывает в device-protected хранилище. См. AppStorage.
+    private val appContext = AppStorage.preferenceContext(context)
 
     fun warmUp() {
         ensureLoaded()

@@ -1,5 +1,6 @@
 ﻿package ru.hlebushek.RuTTS.ui.settings
 
+import android.os.Build
 import android.os.Bundle
 import android.text.InputType
 import android.text.method.DigitsKeyListener
@@ -32,6 +33,11 @@ class RuttsSettingsFragment : PreferenceFragmentCompat() {
     }
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+        // Настройки хранятся в device-protected (для Direct Boot) — UI должен
+        // читать/писать то же хранилище, что и сервис. См. AppStorage.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            preferenceManager.setStorageDeviceProtected()
+        }
         repository = ConfigRepository(requireContext())
         setPreferencesFromResource(R.xml.rutts_preferences, rootKey)
         configurePreferences()
