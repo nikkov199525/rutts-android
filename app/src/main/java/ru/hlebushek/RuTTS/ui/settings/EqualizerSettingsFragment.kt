@@ -1,5 +1,6 @@
 package ru.hlebushek.RuTTS.ui.settings
 
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.preference.Preference
@@ -11,6 +12,10 @@ class EqualizerSettingsFragment : PreferenceFragmentCompat() {
     private lateinit var repository: ConfigRepository
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+        // См. AppStorage: то же device-protected хранилище, что и у сервиса.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            preferenceManager.setStorageDeviceProtected()
+        }
         repository = ConfigRepository(requireContext())
         setPreferencesFromResource(R.xml.equalizer_preferences, rootKey)
         configurePreferences()

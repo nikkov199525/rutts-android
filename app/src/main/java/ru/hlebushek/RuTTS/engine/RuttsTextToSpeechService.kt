@@ -58,162 +58,168 @@ class RuttsTextToSpeechService : TextToSpeechService() {
     override fun onSynthesizeText(request: SynthesisRequest, callback: SynthesisCallback) {
         val requestId = requestGeneration.incrementAndGet()
         NativeRutts.requestStop()
-        var shouldCallDone = false
-        var callbackFailed = false
         try {
-            if (!NativeLibraryLoader.ensureLoaded()) {
-                Log.e(logTag, "native library unavailable: ${NativeLibraryLoader.diagnostic()}")
-                signalError(callback, requestId)
-                callbackFailed = true
-                return
-            }
-            if (!isRequestSupported(request)) {
-                Log.e(logTag, "request not supported")
-                signalError(callback, requestId)
-                callbackFailed = true
-                shouldCallDone = true
-                return
-            }
-
-            val text = extractRequestText(request)
-            if (text.isBlank()) {
-                Log.e(logTag, "blank text")
-                signalError(callback, requestId)
-                callbackFailed = true
-                shouldCallDone = true
-                return
-            }
-
-            val synthesisSettings = repository.loadSynthesisSettings()
-            val config = synthesisSettings.config
-            val runtimeDefaults = synthesisSettings.runtimeSettings
-            val equalizerSettings = synthesisSettings.equalizerSettings
-            val characters = synthesisSettings.characters
-            val singleCharacters = synthesisSettings.singleCharacters
-            val runtimeSettings = RuntimeSettings(
-                speechRate = scalePercent(runtimeDefaults.speechRate, request.speechRate, 20, 500),
-                pitchPercent = scalePercent(runtimeDefaults.pitchPercent, request.pitch, 50, 300),
-                volumePercent = extractVolumePercent(request, runtimeDefaults.volumePercent),
-                spellOut = false
-            )
-            val voicePitchPercent = runtimeSettings.pitchPercent
-
-            val directStreaming = RuttsTtsContract.shouldUseDirectStreaming(
-                config,
-                equalizerSettings.isFlat
-            )
-            if (directStreaming) {
-                val maxChunkSize = androidChunkSize(callback)
-                val outputSampleRate = platformOutputSampleRate(config.outputSampleRate)
-                val streamingCallback = if (equalizerSettings.isFlat) {
-                    callback
-                } else {
-                    EqualizingSynthesisCallback(callback, outputSampleRate, equalizerSettings)
-                }
-                val segments = sourceSegments(text).iterator()
-                val startResult = callback.start(outputSampleRate, AudioFormat.ENCODING_PCM_16BIT, 1)
-                if (startResult != TextToSpeech.SUCCESS) return
-                shouldCallDone = true
-                var hasPreparedSegment = false
-                var index = 0
-                var segment = segments.next()
-                while (true) {
-                    val isLastSegment = !segments.hasNext()
-                    if (!isActive(requestId)) return
-                    val preparedSegment = textPreprocessor.prepare(
-                        text = segment,
-                        spellOut = runtimeSettings.spellOut,
-                        config = config,
-                        characters = characters,
-                        singleCharacters = singleCharacters
-                    )
-                    if (!isActive(requestId)) return
-                    if (preparedSegment.isNotBlank()) {
-                        hasPreparedSegment = true
-                        val segmentConfig = config.copy(
-                            silenceAtBegin = if (index == 0) config.silenceAtBegin else 0,
-                            silenceAtEnd = if (isLastSegment) config.silenceAtEnd else 0
-                        )
-                        val completed = NativeRutts.synthesizeStreaming(
-                            preparedSegment,
-                            segmentConfig,
-                            runtimeSettings,
-                            voicePitchPercent,
-                            streamingCallback,
-                            outputSampleRate,
-                            maxChunkSize
-                        )
-                        if (!completed) {
-                            return
-                        }
-                    }
-                    if (isLastSegment) break
-                    segment = segments.next()
-                    index++
-                }
-                if (!hasPreparedSegment && isActive(requestId)) {
-                    Log.e(logTag, "prepared text is blank")
-                    signalError(callback, requestId)
-                    callbackFailed = true
-                }
-                return
-            }
-
-            val preparedText = textPreprocessor.prepare(
-                text = text,
-                spellOut = runtimeSettings.spellOut,
-                config = config,
-                characters = characters,
-                singleCharacters = singleCharacters
-            )
-            if (!isActive(requestId)) {
-                Log.w(logTag, "stopped before synthesis")
-                return
-            }
-            if (preparedText.isBlank()) {
-                Log.e(logTag, "prepared text is blank")
-                signalError(callback, requestId)
-                callbackFailed = true
-                shouldCallDone = true
-                return
-            }
-
-            val pcm = NativeRutts.synthesize(preparedText, config, runtimeSettings, voicePitchPercent)
-            if (!isActive(requestId)) {
-                Log.w(logTag, "stopped after synthesis")
-                return
-            }
-            if (pcm.isEmpty()) {
-                Log.e(logTag, "native synth returned empty pcm")
-                signalError(callback, requestId)
-                callbackFailed = true
-                shouldCallDone = true
-                return
-            }
-            AudioEqualizer.applyInPlace(pcm, config.outputSampleRate, equalizerSettings)
-
-            val startResult = callback.start(config.outputSampleRate, AudioFormat.ENCODING_PCM_16BIT, 1)
-            if (startResult != TextToSpeech.SUCCESS) {
-                return
-            }
-            shouldCallDone = true
-
-            writeAudio(callback, pcm, pcm.size, androidChunkSize(callback), requestId)
+            synthesizeText(request, callback, requestId)
         } catch (_: InterruptedException) {
             Log.e(logTag, "InterruptedException")
             signalError(callback, requestId)
-            callbackFailed = true
-            shouldCallDone = true
         } catch (e: Exception) {
             Log.e(logTag, "Exception during synthesis", e)
             signalError(callback, requestId)
-            callbackFailed = true
-            shouldCallDone = true
         } finally {
-            if (shouldCallDone && !callbackFailed) {
-                callback.done()
-            }
+            // done() обязателен на любом исходе и ровно один раз: именно он
+            // отправляет клиенту onDone/onError. Сам error() ничего не
+            // отправляет, а фреймворк дозывает done() только если успел
+            // отработать start() (AOSP PlaybackSynthesisCallback.done(),
+            // SynthesisSpeechItem.playImpl). Без этого вызова TalkBack ждёт
+            // завершения реплики бесконечно и вся очередь речи встаёт.
+            callback.done()
         }
+    }
+
+    private fun synthesizeText(
+        request: SynthesisRequest,
+        callback: SynthesisCallback,
+        requestId: Long
+    ) {
+        if (!NativeLibraryLoader.ensureLoaded()) {
+            Log.e(logTag, "native library unavailable: ${NativeLibraryLoader.diagnostic()}")
+            signalError(callback, requestId)
+            return
+        }
+        if (!isRequestSupported(request)) {
+            Log.e(logTag, "request not supported")
+            signalError(callback, requestId)
+            return
+        }
+
+        val text = extractRequestText(request)
+        if (text.isBlank()) {
+            startSilentUtterance(callback, requestId)
+            return
+        }
+
+        val synthesisSettings = repository.loadSynthesisSettings()
+        val config = synthesisSettings.config
+        val runtimeDefaults = synthesisSettings.runtimeSettings
+        val equalizerSettings = synthesisSettings.equalizerSettings
+        val characters = synthesisSettings.characters
+        val singleCharacters = synthesisSettings.singleCharacters
+        val runtimeSettings = RuntimeSettings(
+            speechRate = scalePercent(runtimeDefaults.speechRate, request.speechRate, 20, 500),
+            pitchPercent = scalePercent(runtimeDefaults.pitchPercent, request.pitch, 50, 300),
+            volumePercent = extractVolumePercent(request, runtimeDefaults.volumePercent),
+            spellOut = false
+        )
+        val voicePitchPercent = runtimeSettings.pitchPercent
+
+        val directStreaming = RuttsTtsContract.shouldUseDirectStreaming(
+            config,
+            equalizerSettings.isFlat
+        )
+        if (directStreaming) {
+            val maxChunkSize = androidChunkSize(callback)
+            val outputSampleRate = platformOutputSampleRate(config.outputSampleRate)
+            val streamingCallback = if (equalizerSettings.isFlat) {
+                callback
+            } else {
+                EqualizingSynthesisCallback(callback, outputSampleRate, equalizerSettings)
+            }
+            val segments = sourceSegments(text).iterator()
+            val startResult = callback.start(outputSampleRate, AudioFormat.ENCODING_PCM_16BIT, 1)
+            if (startResult != TextToSpeech.SUCCESS) return
+            var index = 0
+            var segment = segments.next()
+            while (true) {
+                val isLastSegment = !segments.hasNext()
+                if (!isActive(requestId)) return
+                val preparedSegment = textPreprocessor.prepare(
+                    text = segment,
+                    spellOut = runtimeSettings.spellOut,
+                    config = config,
+                    characters = characters,
+                    singleCharacters = singleCharacters
+                )
+                if (!isActive(requestId)) return
+                if (preparedSegment.isNotBlank()) {
+                    val segmentConfig = config.copy(
+                        silenceAtBegin = if (index == 0) config.silenceAtBegin else 0,
+                        silenceAtEnd = if (isLastSegment) config.silenceAtEnd else 0
+                    )
+                    val completed = NativeRutts.synthesizeStreaming(
+                        preparedSegment,
+                        segmentConfig,
+                        runtimeSettings,
+                        voicePitchPercent,
+                        streamingCallback,
+                        outputSampleRate,
+                        maxChunkSize
+                    )
+                    if (!completed) {
+                        return
+                    }
+                }
+                if (isLastSegment) break
+                segment = segments.next()
+                index++
+            }
+            // Ни один сегмент не дал произносимого текста (строка из скобок,
+            // эмодзи при выключенном чтении эмодзи и т.п.) — это не сбой:
+            // start() уже отработал, реплика завершится пустой в done().
+            return
+        }
+
+        val preparedText = textPreprocessor.prepare(
+            text = text,
+            spellOut = runtimeSettings.spellOut,
+            config = config,
+            characters = characters,
+            singleCharacters = singleCharacters
+        )
+        if (!isActive(requestId)) {
+            Log.w(logTag, "stopped before synthesis")
+            return
+        }
+        if (preparedText.isBlank()) {
+            startSilentUtterance(callback, requestId)
+            return
+        }
+
+        val pcm = NativeRutts.synthesize(preparedText, config, runtimeSettings, voicePitchPercent)
+        if (!isActive(requestId)) {
+            Log.w(logTag, "stopped after synthesis")
+            return
+        }
+        if (pcm.isEmpty()) {
+            Log.w(logTag, "native synth returned empty pcm")
+            startSilentUtterance(callback, requestId)
+            return
+        }
+        AudioEqualizer.applyInPlace(pcm, config.outputSampleRate, equalizerSettings)
+
+        val startResult = callback.start(config.outputSampleRate, AudioFormat.ENCODING_PCM_16BIT, 1)
+        if (startResult != TextToSpeech.SUCCESS) {
+            return
+        }
+
+        writeAudio(callback, pcm, pcm.size, androidChunkSize(callback), requestId)
+    }
+
+    // Пустая реплика: строка без произносимого текста (пустая строка между
+    // абзацами, один разделитель) прилетает от TalkBack отдельным запросом.
+    // Отвечать error() нельзя — TalkBack считает подряд идущие ошибки отказом
+    // движка и уходит на другой. Отвечаем успехом: start() без единого
+    // audioAvailable() создаёт AudioTrack, но не запускает его — ни задержки,
+    // ни щелчка. Реплику закрывает общий done() в onSynthesizeText.
+    private fun startSilentUtterance(callback: SynthesisCallback, requestId: Long) {
+        if (!isActive(requestId)) {
+            return
+        }
+        callback.start(
+            platformOutputSampleRate(SILENT_UTTERANCE_SAMPLE_RATE),
+            AudioFormat.ENCODING_PCM_16BIT,
+            1
+        )
     }
 
     private fun isRequestSupported(request: SynthesisRequest): Boolean {
@@ -367,6 +373,7 @@ class RuttsTextToSpeechService : TextToSpeechService() {
 
     companion object {
         private const val logTag = "RuTTS.TtsService"
+        private const val SILENT_UTTERANCE_SAMPLE_RATE = 16000
         private const val MIN_OUTPUT_SAMPLE_RATE = 8000
         private const val MAX_OUTPUT_SAMPLE_RATE = 192000
         private const val MIN_FIRST_SOURCE_SEGMENT_CHARS = 80

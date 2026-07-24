@@ -152,8 +152,8 @@ android {
         applicationId = "ru.hlebushek.RuTTS"
         minSdk = 16
         targetSdk = 29
-        versionCode = 6
-        versionName = "0.6"
+        versionCode = 7
+        versionName = "0.7"
 
         externalNativeBuild {
             cmake {
@@ -227,6 +227,14 @@ android {
 
     lint {
         disable += "ExpiredTargetSdkVersion"
+        // Собираем только ARM (armeabi-v7a, arm64-v8a) — ChromeOS x86_64 не цель.
+        disable += "ChromeOsAbiSupport"
+        // Overdraw корневых фонов — микро-подсказка производительности, не баг.
+        disable += "Overdraw"
+        // androidx-версии зафиксированы под minSdk 16 — новее требуют minSdk 19+.
+        disable += "GradleDependency"
+        // Палитра цветов общая с основным модулем, где эти цвета используются.
+        disable += "UnusedResources"
     }
 }
 

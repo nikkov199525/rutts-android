@@ -7,7 +7,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class ConfigRepository(context: Context) {
-    private val preferences = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
+    // Настройки живут в device-protected хранилище, чтобы движок читал их в
+    // Direct Boot до разблокировки. preferenceContext() до API 24 возвращает
+    // обычный контекст приложения. См. AppStorage.
+    private val preferences =
+        PreferenceManager.getDefaultSharedPreferences(AppStorage.preferenceContext(context))
 
     // Словари кэшируются по «сырой» строке из SharedPreferences, а не через
     // OnSharedPreferenceChangeListener. Слушатель ненадёжен: он не срабатывает

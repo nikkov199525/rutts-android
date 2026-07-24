@@ -2,6 +2,7 @@ package ru.hlebushek.RuTTS
 
 import android.app.Application
 import android.util.Log
+import ru.hlebushek.RuTTS.config.AppStorage
 import ru.hlebushek.RuTTS.config.ConfigRepository
 import ru.hlebushek.RuTTS.engine.NativeLibraryLoader
 import ru.hlebushek.RuTTS.engine.RulexEngine
@@ -10,6 +11,9 @@ import ru.hlebushek.RuTTS.ui.theme.AppTheme
 class RuttsApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        // Перенос настроек в device-protected — строго ДО первого чтения
+        // (AppTheme/ConfigRepository ниже уже читают оттуда). См. AppStorage.
+        AppStorage.migrateToDeviceProtected(this)
         AppTheme.applySaved(this)
         warmUpSpeechRuntime()
     }

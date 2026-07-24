@@ -1,5 +1,6 @@
 ﻿package ru.hlebushek.RuTTS.ui.settings
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
 import android.text.InputType
@@ -19,6 +20,8 @@ class NumericPreferenceDialogFragment : PreferenceDialogFragmentCompat() {
     private lateinit var valueLayout: TextInputLayout
     private lateinit var valueInput: TextInputEditText
 
+    // Диалог инфлейтится без родителя — null root здесь корректен.
+    @SuppressLint("InflateParams")
     override fun onCreateDialogView(context: Context): View {
         return LayoutInflater.from(context).inflate(R.layout.dialog_numeric_preference, null)
     }
@@ -38,6 +41,9 @@ class NumericPreferenceDialogFragment : PreferenceDialogFragmentCompat() {
         }
     }
 
+    // Переопределение needInputMethod() — санкционированный способ показать
+    // клавиатуру для этого диалога; метод помечен @RestrictTo в androidx.
+    @SuppressLint("RestrictedApi")
     override fun needInputMethod(): Boolean = true
 
     override fun onStart() {

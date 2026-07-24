@@ -1,5 +1,7 @@
 ﻿package ru.hlebushek.RuTTS.ui.settings
 
+import android.annotation.SuppressLint
+import android.os.Build
 import android.os.Bundle
 import android.text.InputType
 import android.text.method.DigitsKeyListener
@@ -22,16 +24,28 @@ import java.util.Locale
 
 class RuttsSettingsFragment : PreferenceFragmentCompat() {
     private lateinit var repository: ConfigRepository
+
+    // Резервные копии через Storage Access Framework — доступ к документам
+    // появился в API 19. На более старых устройствах эти кнопки просто не
+    // сработают; регистрация лаунчеров безопасна на любом API.
+    @SuppressLint("NewApi")
     private val createBackupDocument = registerForActivityResult(
         ActivityResultContracts.CreateDocument(SETTINGS_MIME_TYPE)
     ) { uri ->
         if (uri != null) saveSettingsBackup(uri)
     }
+
+    @SuppressLint("NewApi")
     private val openBackupDocument = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) restoreSettingsBackup(uri)
     }
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+        // Настройки хранятся в device-protected (для Direct Boot) — UI должен
+        // читать/писать то же хранилище, что и сервис. См. AppStorage.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            preferenceManager.setStorageDeviceProtected()
+        }
         repository = ConfigRepository(requireContext())
         setPreferencesFromResource(R.xml.rutts_preferences, rootKey)
         configurePreferences()
