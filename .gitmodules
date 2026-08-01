@@ -9,7 +9,7 @@
 	url = https://github.com/PCRE2Project/pcre2.git
 [submodule "app/src/main/cpp/third_party/rulex"]
 	path = app/src/main/cpp/third_party/rulex
-	url = https://gitverse.ru/kvark128/rulex.git
+	url = https://github.com/poretsky/rulex.git
 [submodule "app/src/main/cpp/third_party/ru_tts"]
 	path = app/src/main/cpp/third_party/ru_tts
 	url = https://github.com/nikkov199525/ru_tts.git
