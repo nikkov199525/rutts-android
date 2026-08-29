@@ -16,18 +16,23 @@
 #include <vector>
 
 #include "coder.h"
+#include "covox.h"
 #include "samplerate.h"
 #include "synth_engine.h"
 
 namespace {
 constexpr int kRulexBufferSize = 256;
+constexpr size_t kConfigVolumePercentIndex = 1;
 constexpr size_t kConfigSampleRateIndex = 2;
 constexpr size_t kConfigInterpolationMultiplierIndex = 3;
 constexpr size_t kConfigInterpolationAlgorithmIndex = 4;
 constexpr size_t kConfigUseRateBoostIndex = 9;
+constexpr size_t kConfigUseCovoxIndex = 23;
 constexpr int kFallbackSampleRate = 10000;
 constexpr int kMinSampleRate = 8000;
 constexpr int kMaxSampleRate = 192000;
+constexpr int kCovoxInputSampleRate = 10027;
+constexpr int kCovoxOutputSampleRate = 48000;
 constexpr double kPi = 3.14159265358979323846;
 SynthEngine g_engine;
 
@@ -64,6 +69,8 @@ public:
         int interpolation_algorithm,
         int output_sample_rate,
         bool use_soft_resampling,
+        bool use_covox,
+        float covox_volume,
         AudioConsumer consumer)
         : interpolation_multiplier_(NormalizeInterpolationMultiplier(interpolation_multiplier)),
           input_sample_rate_(std::clamp(
@@ -72,7 +79,16 @@ public:
               kMaxSampleRate)),
           output_sample_rate_(output_sample_rate),
           use_soft_resampling_(use_soft_resampling),
+          use_covox_(use_covox),
+          covox_volume_(std::clamp(covox_volume, 0.0F, 1.0F)),
           consumer_(std::move(consumer)) {
+        if (use_covox_) {
+            covox_linear_init(
+                &covox_state_,
+                kCovoxInputSampleRate,
+                kCovoxOutputSampleRate);
+            return;
+        }
         if (interpolation_multiplier_ != 1) {
             int error = 0;
             interpolation_state_ = src_new(
@@ -103,6 +119,9 @@ public:
         if (!valid() || !pcm8 || size == 0) {
             return size == 0 && valid();
         }
+        if (use_covox_) {
+            return PushCovoxPcm8(pcm8, size);
+        }
 
         if (interpolation_multiplier_ == 1 && input_sample_rate_ == output_sample_rate_) {
             return EmitPcm8AsPcm16(pcm8, size);
@@ -125,6 +144,9 @@ public:
     bool PushPcm16(const std::uint8_t* pcm16_bytes, size_t size) {
         if (!valid() || !pcm16_bytes || size == 0 || size % sizeof(std::int16_t) != 0) {
             return size == 0 && valid();
+        }
+        if (use_covox_) {
+            return PushCovoxPcm16(pcm16_bytes, size);
         }
         if (interpolation_multiplier_ == 1 && input_sample_rate_ == output_sample_rate_) {
             return consumer_(pcm16_bytes, size);
@@ -150,6 +172,14 @@ public:
         if (!valid()) {
             return false;
         }
+        if (use_covox_) {
+            covox_output_.resize(32);
+            const size_t produced = covox_linear_flush(
+                &covox_state_,
+                covox_output_.data(),
+                covox_output_.size());
+            return produced == 0 || EmitPcm16(covox_output_.data(), produced);
+        }
         if (interpolation_multiplier_ != 1 && !Interpolate(true)) {
             return false;
         }
@@ -157,6 +187,57 @@ public:
     }
 
 private:
+    bool PushCovoxPcm8(const std::uint8_t* pcm8, size_t size) {
+        covox_input_.resize(size);
+        for (size_t index = 0; index < size; ++index) {
+            covox_input_[index] = static_cast<std::int8_t>(static_cast<int>(pcm8[index]) - 128);
+        }
+        return ProcessCovoxInput();
+    }
+
+    bool PushCovoxPcm16(const std::uint8_t* pcm16_bytes, size_t size) {
+        const size_t sample_count = size / sizeof(std::int16_t);
+        covox_input_.resize(sample_count);
+        for (size_t index = 0; index < sample_count; ++index) {
+            std::int16_t sample = 0;
+            std::memcpy(&sample, pcm16_bytes + index * sizeof(sample), sizeof(sample));
+            const std::uint8_t high_byte = static_cast<std::uint8_t>(
+                static_cast<std::uint16_t>(sample) >> 8U);
+            std::memcpy(&covox_input_[index], &high_byte, sizeof(high_byte));
+        }
+        return ProcessCovoxInput();
+    }
+
+    bool ProcessCovoxInput() {
+        size_t consumed_total = 0;
+        while (consumed_total < covox_input_.size()) {
+            const size_t remaining = covox_input_.size() - consumed_total;
+            const size_t output_capacity = std::max<size_t>(
+                256,
+                ((remaining + 2U) * static_cast<size_t>(kCovoxOutputSampleRate)) /
+                    static_cast<size_t>(kCovoxInputSampleRate) + 8U);
+            covox_output_.resize(output_capacity);
+            size_t consumed = 0;
+            const size_t produced = covox_linear_process(
+                &covox_state_,
+                covox_input_.data() + consumed_total,
+                remaining,
+                covox_output_.data(),
+                covox_output_.size(),
+                covox_volume_,
+                &consumed);
+            consumed_total += consumed;
+            if (produced > 0 && !EmitPcm16(covox_output_.data(), produced)) {
+                return false;
+            }
+            if (consumed == 0 && produced == 0) {
+                return false;
+            }
+        }
+        covox_input_.clear();
+        return true;
+    }
+
     bool EmitPcm8AsPcm16(const std::uint8_t* pcm8, size_t size) {
         output_.resize(size);
         for (size_t index = 0; index < size; ++index) {
@@ -313,6 +394,8 @@ private:
     int input_sample_rate_;
     int output_sample_rate_;
     bool use_soft_resampling_;
+    bool use_covox_;
+    float covox_volume_;
     AudioConsumer consumer_;
     bool valid_ = true;
     SRC_STATE* interpolation_state_ = nullptr;
@@ -324,6 +407,9 @@ private:
     std::vector<float> interpolation_output_;
     std::vector<float> coefficients_;
     std::vector<std::int16_t> output_;
+    covox_linear_state_t covox_state_{};
+    std::vector<std::int8_t> covox_input_;
+    std::vector<std::int16_t> covox_output_;
     double input_position_ = 0.0;
 };
 
@@ -491,6 +577,11 @@ Java_ru_hlebushek_RuTTS_engine_NativeRutts_nativeSynthesizeStreamingRaw(
         : 0;
     const bool useRateBoost = config.size() > kConfigUseRateBoostIndex &&
         config[kConfigUseRateBoostIndex] != 0;
+    const bool useCovox = config.size() > kConfigUseCovoxIndex &&
+        config[kConfigUseCovoxIndex] != 0;
+    const int volumePercent = config.size() > kConfigVolumePercentIndex
+        ? std::clamp(config[kConfigVolumePercentIndex], 0, 100)
+        : 100;
     const int outputSampleRateClamped = std::clamp(
         static_cast<int>(outputSampleRate),
         kMinSampleRate,
@@ -499,17 +590,23 @@ Java_ru_hlebushek_RuTTS_engine_NativeRutts_nativeSynthesizeStreamingRaw(
         sourceSampleRate,
         interpolationMultiplier,
         interpolationAlgorithm,
-        outputSampleRateClamped,
+        useCovox ? kCovoxOutputSampleRate : outputSampleRateClamped,
         useSoftResampling == JNI_TRUE,
+        useCovox,
+        static_cast<float>(volumePercent) / 100.0F,
         emitPcm16);
     if (!adapter.valid()) {
         env->DeleteLocalRef(reusableChunk);
         return JNI_FALSE;
     }
 
+    std::vector<int> engineConfig = config;
+    if (useCovox && engineConfig.size() > kConfigVolumePercentIndex) {
+        engineConfig[kConfigVolumePercentIndex] = 100;
+    }
     bool completed = g_engine.SynthesizeStreaming(
         text,
-        config,
+        engineConfig,
         [&adapter, useRateBoost](const std::uint8_t* data, size_t size) {
             return useRateBoost ? adapter.PushPcm16(data, size) : adapter.Push(data, size);
         });

@@ -20,6 +20,7 @@ add_subdirectory(third_party/pcre2 pcre2-build EXCLUDE_FROM_ALL)
 add_library(
     rutts_android
     SHARED
+    covox.c
     native_bridge.cpp
     rulex_runtime.cpp
     synth_engine.cpp

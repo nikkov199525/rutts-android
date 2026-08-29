@@ -145,18 +145,8 @@
     </PreferenceCategory>
 
     <PreferenceCategory
-        app:key="category_advanced"
-        app:title="@string/settings_category_advanced">
-
-        <CheckBoxPreference
-            app:defaultValue="false"
-            app:key="dec_sep_point"
-            app:title="@string/pref_dec_sep_point" />
-
-        <CheckBoxPreference
-            app:defaultValue="true"
-            app:key="dec_sep_comma"
-            app:title="@string/pref_dec_sep_comma" />
+        app:key="category_interpolation"
+        app:title="@string/settings_category_interpolation">
 
         <ListPreference
             app:defaultValue="1"
@@ -173,6 +163,27 @@
             app:key="interpolation_algorithm"
             app:title="@string/pref_interpolation_algorithm"
             app:useSimpleSummaryProvider="true" />
+
+        <CheckBoxPreference
+            app:defaultValue="false"
+            app:key="use_covox"
+            app:summary="@string/pref_use_covox_summary"
+            app:title="@string/pref_use_covox" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="category_advanced"
+        app:title="@string/settings_category_advanced">
+
+        <CheckBoxPreference
+            app:defaultValue="false"
+            app:key="dec_sep_point"
+            app:title="@string/pref_dec_sep_point" />
+
+        <CheckBoxPreference
+            app:defaultValue="true"
+            app:key="dec_sep_comma"
+            app:title="@string/pref_dec_sep_comma" />
 
         <CheckBoxPreference
             app:defaultValue="false"

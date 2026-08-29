@@ -160,13 +160,17 @@ class RuttsTextToSpeechService : TextToSpeechService() {
             "streaming decision direct=$directStreaming flat=${equalizerSettings.isFlat} " +
                 "rateBoost=${config.useRateBoost} newRate=${config.useNewRateAlgorithm} " +
                 "rulex=${config.useRulex} softResampling=${config.useSoftResampling} " +
-                "interpolation=${config.interpolationMultiplier}"
+                "interpolation=${config.interpolationMultiplier} covox=${config.useCovox}"
         )
         if (directStreaming) {
             val directStartedAt = SystemClock.elapsedRealtimeNanos()
             logLatency(directStartedAt, "direct request entered")
             val maxChunkSize = androidChunkSize(callback)
-            val outputSampleRate = platformOutputSampleRate(config.outputSampleRate)
+            val outputSampleRate = if (config.useCovox) {
+                config.outputSampleRate
+            } else {
+                platformOutputSampleRate(config.outputSampleRate)
+            }
             val streamingCallback = if (equalizerSettings.isFlat) {
                 callback
             } else {
