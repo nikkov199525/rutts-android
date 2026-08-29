@@ -93,6 +93,7 @@ class ConfigRepository(context: Context) {
     }
 
     private fun loadConfig(values: Map<String, *>): RuttsConfig {
+        val useCovox = readBoolean(values, PreferenceKeys.USE_COVOX, false)
         return RuttsConfig(
             useRulex = readBoolean(values, PreferenceKeys.USE_RULEX, true),
             readEmojis = readBoolean(values, PreferenceKeys.READ_EMOJIS, false),
@@ -101,10 +102,15 @@ class ConfigRepository(context: Context) {
             useRateBoost = readBoolean(values, PreferenceKeys.USE_RATE_BOOST, false),
             useNewRateAlgorithm = readBoolean(values, PreferenceKeys.USE_NEW_RATE_ALGORITHM, false),
             useSoftResampling = readBoolean(values, PreferenceKeys.USE_SOFT_RESAMPLING, false),
+            useCovox = useCovox,
             samplesPerSec = readInt(values, PreferenceKeys.SAMPLES_PER_SEC, 10000, 8000, 16000),
-            interpolationMultiplier = normalizeInterpolationMultiplier(
-                readInt(values, PreferenceKeys.INTERPOLATION_MULTIPLIER, 1, 1, 4)
-            ),
+            interpolationMultiplier = if (useCovox) {
+                1
+            } else {
+                normalizeInterpolationMultiplier(
+                    readInt(values, PreferenceKeys.INTERPOLATION_MULTIPLIER, 1, 1, 4)
+                )
+            },
             interpolationAlgorithm = if (readInt(values, PreferenceKeys.INTERPOLATION_ALGORITHM, 0, 0, 1) == 0) {
                 InterpolationAlgorithm.LINEAR
             } else {
@@ -283,6 +289,7 @@ class ConfigRepository(context: Context) {
             putBoolean(PreferenceKeys.USE_RATE_BOOST, false)
             putBoolean(PreferenceKeys.USE_NEW_RATE_ALGORITHM, false)
             putBoolean(PreferenceKeys.USE_SOFT_RESAMPLING, false)
+            putBoolean(PreferenceKeys.USE_COVOX, false)
             putString(PreferenceKeys.SAMPLES_PER_SEC, "10000")
             putString(PreferenceKeys.INTERPOLATION_MULTIPLIER, "1")
             putString(PreferenceKeys.INTERPOLATION_ALGORITHM, "0")
@@ -438,6 +445,7 @@ class ConfigRepository(context: Context) {
             PreferenceKeys.USE_RATE_BOOST,
             PreferenceKeys.USE_NEW_RATE_ALGORITHM,
             PreferenceKeys.USE_SOFT_RESAMPLING,
+            PreferenceKeys.USE_COVOX,
             PreferenceKeys.DEC_SEP_POINT,
             PreferenceKeys.DEC_SEP_COMMA
         )

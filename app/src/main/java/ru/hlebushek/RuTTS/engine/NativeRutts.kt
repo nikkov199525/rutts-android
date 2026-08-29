@@ -93,7 +93,8 @@ object NativeRutts {
             config.intonationalGapFactor,
             voicePitchPercent.coerceIn(50, 300),
             config.intonation,
-            if (config.useNewRateAlgorithm) 1 else 0
+            if (config.useNewRateAlgorithm) 1 else 0,
+            if (config.useCovox) 1 else 0
         )
     }
 

@@ -39,6 +39,7 @@ data class RuttsConfig(
     val useRateBoost: Boolean = false,
     val useNewRateAlgorithm: Boolean = false,
     val useSoftResampling: Boolean = false,
+    val useCovox: Boolean = false,
     val samplesPerSec: Int = 10000,
     val interpolationMultiplier: Int = 1,
     val interpolationAlgorithm: InterpolationAlgorithm = InterpolationAlgorithm.LINEAR,
@@ -58,7 +59,15 @@ data class RuttsConfig(
     val intonation: Int = 100
 ) {
     val outputSampleRate: Int
-        get() = (samplesPerSec * interpolationMultiplier).coerceIn(8000, 192000)
+        get() = if (useCovox) {
+            COVOX_OUTPUT_SAMPLE_RATE
+        } else {
+            (samplesPerSec * interpolationMultiplier).coerceIn(8000, 192000)
+        }
+
+    private companion object {
+        const val COVOX_OUTPUT_SAMPLE_RATE = 48000
+    }
 }
 
 data class NumericPreferenceSpec(
@@ -75,6 +84,7 @@ object PreferenceKeys {
     const val USE_RATE_BOOST = "use_rate_boost"
     const val USE_NEW_RATE_ALGORITHM = "use_new_rate_algorithm"
     const val USE_SOFT_RESAMPLING = "use_soft_resampling"
+    const val USE_COVOX = "use_covox"
     const val SAMPLES_PER_SEC = "samples_per_sec"
     const val INTERPOLATION_MULTIPLIER = "interpolation_multiplier"
     const val INTERPOLATION_ALGORITHM = "interpolation_algorithm"

@@ -76,6 +76,18 @@ class RuttsSettingsFragment : PreferenceFragmentCompat() {
             }
         }
 
+        val interpolationMultiplier =
+            findPreference<ListPreference>(PreferenceKeys.INTERPOLATION_MULTIPLIER)
+        if (repository.loadConfig().useCovox && interpolationMultiplier?.value != "1") {
+            interpolationMultiplier?.value = "1"
+        }
+        findPreference<Preference>(PreferenceKeys.USE_COVOX)?.setOnPreferenceChangeListener { _, newValue ->
+            if (newValue == true) {
+                interpolationMultiplier?.value = "1"
+            }
+            true
+        }
+
         findPreference<Preference>("edit_characters")?.setOnPreferenceClickListener {
             openDictionary(DictionaryKind.CHARACTERS)
             true

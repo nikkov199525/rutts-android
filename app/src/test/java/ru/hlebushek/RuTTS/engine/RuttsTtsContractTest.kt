@@ -21,6 +21,16 @@ class RuttsTtsContractTest {
     }
 
     @Test
+    fun covoxUsesItsHistoricalOutputRate() {
+        assertFalse(RuttsConfig().useCovox)
+        assertEquals(40000, RuttsConfig(interpolationMultiplier = 4).outputSampleRate)
+        assertEquals(
+            48000,
+            RuttsConfig(useCovox = true, interpolationMultiplier = 4).outputSampleRate
+        )
+    }
+
+    @Test
     fun keepsDirectStreamingForEveryAudioMode() {
         listOf(1, 2, 4).forEach { multiplier ->
             assertTrue(

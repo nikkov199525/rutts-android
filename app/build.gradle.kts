@@ -152,8 +152,8 @@ android {
         applicationId = "ru.hlebushek.RuTTS"
         minSdk = 16
         targetSdk = 29
-        versionCode = 7
-        versionName = "0.7"
+        versionCode = 8
+        versionName = "0.8"
 
         externalNativeBuild {
             cmake {
