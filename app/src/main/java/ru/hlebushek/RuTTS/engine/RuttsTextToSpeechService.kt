@@ -166,11 +166,7 @@ class RuttsTextToSpeechService : TextToSpeechService() {
             val directStartedAt = SystemClock.elapsedRealtimeNanos()
             logLatency(directStartedAt, "direct request entered")
             val maxChunkSize = androidChunkSize(callback)
-            val outputSampleRate = if (config.useCovox) {
-                config.outputSampleRate
-            } else {
-                platformOutputSampleRate(config.outputSampleRate)
-            }
+            val outputSampleRate = platformOutputSampleRate(config.outputSampleRate)
             val streamingCallback = if (equalizerSettings.isFlat) {
                 callback
             } else {

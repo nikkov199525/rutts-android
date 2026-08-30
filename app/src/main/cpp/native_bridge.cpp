@@ -31,8 +31,6 @@ constexpr size_t kConfigUseCovoxIndex = 23;
 constexpr int kFallbackSampleRate = 10000;
 constexpr int kMinSampleRate = 8000;
 constexpr int kMaxSampleRate = 192000;
-constexpr int kCovoxInputSampleRate = 10027;
-constexpr int kCovoxOutputSampleRate = 48000;
 constexpr double kPi = 3.14159265358979323846;
 SynthEngine g_engine;
 
@@ -85,8 +83,11 @@ public:
         if (use_covox_) {
             covox_linear_init(
                 &covox_state_,
-                kCovoxInputSampleRate,
-                kCovoxOutputSampleRate);
+                static_cast<std::uint32_t>(std::clamp(
+                    source_sample_rate,
+                    kMinSampleRate,
+                    kMaxSampleRate)),
+                static_cast<std::uint32_t>(output_sample_rate_));
             return;
         }
         if (interpolation_multiplier_ != 1) {
@@ -214,8 +215,8 @@ private:
             const size_t remaining = covox_input_.size() - consumed_total;
             const size_t output_capacity = std::max<size_t>(
                 256,
-                ((remaining + 2U) * static_cast<size_t>(kCovoxOutputSampleRate)) /
-                    static_cast<size_t>(kCovoxInputSampleRate) + 8U);
+                ((remaining + 2U) * static_cast<size_t>(covox_state_.output_rate)) /
+                    static_cast<size_t>(covox_state_.input_rate) + 8U);
             covox_output_.resize(output_capacity);
             size_t consumed = 0;
             const size_t produced = covox_linear_process(
@@ -590,7 +591,7 @@ Java_ru_hlebushek_RuTTS_engine_NativeRutts_nativeSynthesizeStreamingRaw(
         sourceSampleRate,
         interpolationMultiplier,
         interpolationAlgorithm,
-        useCovox ? kCovoxOutputSampleRate : outputSampleRateClamped,
+        outputSampleRateClamped,
         useSoftResampling == JNI_TRUE,
         useCovox,
         static_cast<float>(volumePercent) / 100.0F,
@@ -600,13 +601,9 @@ Java_ru_hlebushek_RuTTS_engine_NativeRutts_nativeSynthesizeStreamingRaw(
         return JNI_FALSE;
     }
 
-    std::vector<int> engineConfig = config;
-    if (useCovox && engineConfig.size() > kConfigVolumePercentIndex) {
-        engineConfig[kConfigVolumePercentIndex] = 100;
-    }
     bool completed = g_engine.SynthesizeStreaming(
         text,
-        engineConfig,
+        config,
         [&adapter, useRateBoost](const std::uint8_t* data, size_t size) {
             return useRateBoost ? adapter.PushPcm16(data, size) : adapter.Push(data, size);
         });
