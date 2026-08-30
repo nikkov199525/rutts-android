@@ -21,12 +21,12 @@ class RuttsTtsContractTest {
     }
 
     @Test
-    fun covoxUsesItsHistoricalOutputRate() {
+    fun covoxPreservesTheSelectedSampleRate() {
         assertFalse(RuttsConfig().useCovox)
         assertEquals(40000, RuttsConfig(interpolationMultiplier = 4).outputSampleRate)
         assertEquals(
-            48000,
-            RuttsConfig(useCovox = true, interpolationMultiplier = 4).outputSampleRate
+            11025,
+            RuttsConfig(useCovox = true, samplesPerSec = 11025).outputSampleRate
         )
     }
 

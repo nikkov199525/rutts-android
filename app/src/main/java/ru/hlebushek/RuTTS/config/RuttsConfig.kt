@@ -59,15 +59,7 @@ data class RuttsConfig(
     val intonation: Int = 100
 ) {
     val outputSampleRate: Int
-        get() = if (useCovox) {
-            COVOX_OUTPUT_SAMPLE_RATE
-        } else {
-            (samplesPerSec * interpolationMultiplier).coerceIn(8000, 192000)
-        }
-
-    private companion object {
-        const val COVOX_OUTPUT_SAMPLE_RATE = 48000
-    }
+        get() = (samplesPerSec * interpolationMultiplier).coerceIn(8000, 192000)
 }
 
 data class NumericPreferenceSpec(

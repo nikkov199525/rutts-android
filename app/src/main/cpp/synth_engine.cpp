@@ -20,8 +20,6 @@ constexpr int kExpectedConfigSize = 24;
 constexpr int kSonicChannelCount = 1;
 constexpr int kSonicReadBufferSamples = 4096;
 constexpr float kRateBoostFactor = 2.0F;
-constexpr int kCovoxInputSampleRate = 10027;
-constexpr int kCovoxOutputSampleRate = 48000;
 
 enum ConfigIndex : int {
     CI_SPEECH_RATE = 0,
@@ -207,18 +205,23 @@ std::vector<std::int16_t> ConvertRawAudioWithSonicRateBoost(
 
 std::vector<std::int16_t> ConvertPcm8WithCovox(
     const std::vector<std::int8_t>& input,
+    int input_rate,
+    int output_rate,
     int gain_percent) {
     if (input.empty()) {
         return {};
     }
 
     covox_linear_state_t state{};
-    covox_linear_init(&state, kCovoxInputSampleRate, kCovoxOutputSampleRate);
+    covox_linear_init(
+        &state,
+        static_cast<std::uint32_t>(input_rate),
+        static_cast<std::uint32_t>(output_rate));
     const float volume = static_cast<float>(ClampInt(gain_percent, 0, 100)) / 100.0F;
     std::vector<std::int16_t> output;
     output.reserve(
-        (input.size() * static_cast<size_t>(kCovoxOutputSampleRate)) /
-            static_cast<size_t>(kCovoxInputSampleRate) + 8U);
+        (input.size() * static_cast<size_t>(state.output_rate)) /
+            static_cast<size_t>(state.input_rate) + 8U);
     std::vector<std::int16_t> block(kSonicReadBufferSamples * 2);
     size_t consumed_total = 0;
     while (consumed_total < input.size()) {
@@ -245,6 +248,8 @@ std::vector<std::int16_t> ConvertPcm8WithCovox(
 
 std::vector<std::int16_t> ConvertPcm16WithCovox(
     const std::vector<std::int16_t>& input,
+    int input_rate,
+    int output_rate,
     int gain_percent) {
     std::vector<std::int8_t> pcm8(input.size());
     for (size_t index = 0; index < input.size(); ++index) {
@@ -252,7 +257,7 @@ std::vector<std::int16_t> ConvertPcm16WithCovox(
             static_cast<std::uint16_t>(input[index]) >> 8U);
         std::memcpy(&pcm8[index], &high_byte, sizeof(high_byte));
     }
-    return ConvertPcm8WithCovox(pcm8, gain_percent);
+    return ConvertPcm8WithCovox(pcm8, input_rate, output_rate, gain_percent);
 }
 
 std::vector<std::int16_t> ResampleAudio(
@@ -429,9 +434,7 @@ std::vector<std::uint8_t> SynthEngine::Synthesize(const std::string& text, const
     const int samples_per_sec = ClampInt(config[CI_SAMPLES_PER_SEC], 8000, 16000);
     const bool use_covox = config[CI_USE_COVOX] != 0;
     const int interpolation_multiplier = NormalizeInterpolationMultiplier(config[CI_INTERPOLATION_MULTIPLIER]);
-    const int output_rate = use_covox
-        ? kCovoxOutputSampleRate
-        : ClampInt(samples_per_sec * interpolation_multiplier, 8000, 192000);
+    const int output_rate = ClampInt(samples_per_sec * interpolation_multiplier, 8000, 192000);
     const int wave_buffer_size = ClampInt(config[CI_WAVE_BUFFER_SIZE], 128, 1024000);
     const int silence_at_begin = ClampInt(config[CI_SILENCE_AT_BEGIN], 0, 100);
     const int silence_at_end = ClampInt(config[CI_SILENCE_AT_END], 0, 100);
@@ -464,10 +467,18 @@ std::vector<std::uint8_t> SynthEngine::Synthesize(const std::string& text, const
             samples_per_sec,
             use_covox ? 100 : volume_percent);
         if (use_covox) {
-            pcm16 = ConvertPcm16WithCovox(pcm16, volume_percent);
+            pcm16 = ConvertPcm16WithCovox(
+                pcm16,
+                samples_per_sec,
+                output_rate,
+                volume_percent);
         }
     } else if (use_covox) {
-        pcm16 = ConvertPcm8WithCovox(raw_audio, volume_percent);
+        pcm16 = ConvertPcm8WithCovox(
+            raw_audio,
+            samples_per_sec,
+            output_rate,
+            volume_percent);
     } else {
         pcm16 = ConvertRawAudio(raw_audio, volume_percent);
     }
@@ -519,6 +530,8 @@ bool SynthEngine::SynthesizeStreaming(
     const int sample_rate = ClampInt(config[CI_SAMPLES_PER_SEC], 8000, 16000);
     const int volume_percent = ClampInt(config[CI_VOLUME_PERCENT], 0, 100);
     const bool use_rate_boost = config[CI_USE_RATE_BOOST] != 0;
+    const bool use_covox = config[CI_USE_COVOX] != 0;
+    const int output_gain_percent = use_covox ? 100 : volume_percent;
     const int wave_buffer_size = ClampInt(config[CI_WAVE_BUFFER_SIZE], 128, 1024000);
     std::vector<std::uint8_t> wave_buffer(static_cast<size_t>(wave_buffer_size));
 
@@ -560,7 +573,7 @@ bool SynthEngine::SynthesizeStreaming(
                 for (int index = 0; index < samples_read; ++index) {
                     rate_boost_output[static_cast<size_t>(index)] = ApplyGain(
                         static_cast<std::int16_t>(rate_boost_output[static_cast<size_t>(index)]),
-                        volume_percent);
+                        output_gain_percent);
                 }
                 if (!consumer(
                         reinterpret_cast<const std::uint8_t*>(rate_boost_output.data()),
@@ -576,7 +589,7 @@ bool SynthEngine::SynthesizeStreaming(
     callback_state.consumer = &speech_consumer;
     callback_state.generation = &generation_;
     callback_state.request_generation = request_generation;
-    callback_state.gain_percent = use_rate_boost ? 100 : volume_percent;
+    callback_state.gain_percent = use_rate_boost ? 100 : output_gain_percent;
     ru_tts_transfer(
         &ru_tts_config,
         text.c_str(),
@@ -600,7 +613,7 @@ bool SynthEngine::SynthesizeStreaming(
             for (int index = 0; index < samples_read; ++index) {
                 rate_boost_output[static_cast<size_t>(index)] = ApplyGain(
                     static_cast<std::int16_t>(rate_boost_output[static_cast<size_t>(index)]),
-                    volume_percent);
+                    output_gain_percent);
             }
             completed = consumer(
                 reinterpret_cast<const std::uint8_t*>(rate_boost_output.data()),
