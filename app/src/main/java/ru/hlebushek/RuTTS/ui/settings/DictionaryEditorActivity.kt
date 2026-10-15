@@ -17,6 +17,7 @@ import ru.hlebushek.RuTTS.R
 import ru.hlebushek.RuTTS.config.ConfigRepository
 import ru.hlebushek.RuTTS.config.DictionaryEntry
 import ru.hlebushek.RuTTS.config.DictionaryKind
+import ru.hlebushek.RuTTS.ui.SystemBars
 
 class DictionaryEditorActivity : AppCompatActivity(R.layout.activity_dictionary_editor) {
     private lateinit var repository: ConfigRepository
@@ -27,6 +28,7 @@ class DictionaryEditorActivity : AppCompatActivity(R.layout.activity_dictionary_
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        SystemBars.applyInsets(this)
 
         repository = ConfigRepository(this)
         dictionaryKind = intent.getStringExtra(EXTRA_KIND)

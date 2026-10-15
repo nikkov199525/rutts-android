@@ -9,7 +9,6 @@ import org.gradle.api.tasks.TaskAction
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
 }
 
 abstract class GenerateRulexDbTask : DefaultTask() {
@@ -136,22 +135,20 @@ if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
-val generatedRulexAssetsDir = layout.buildDirectory.dir("generated/rulexAssets")
-val generateRulexDb by tasks.registering(GenerateRulexDbTask::class) {
-    sourceDir.set(layout.projectDirectory.dir("src/main/cpp/third_party/rulex/data"))
-    outputDir.set(generatedRulexAssetsDir)
-}
-
 android {
     namespace = "ru.hlebushek.RuTTS"
-    compileSdk = 35
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 2
+        }
+    }
 
     defaultConfig {
         applicationId = "ru.hlebushek.RuTTS"
         minSdk = 30
-        targetSdk = 35
-        versionCode = 8
-        versionName = "0.8"
+        targetSdk = 37
+        versionCode = 9
+        versionName = "0.9"
 
         externalNativeBuild {
             cmake {
@@ -223,19 +220,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
             version = "3.22.1"
         }
-    }
-
-    sourceSets {
-        getByName("main").assets.srcDir(generateRulexDb.flatMap { it.outputDir })
     }
 
     lint {
@@ -265,12 +254,18 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
 }
 
-tasks.configureEach {
-    val taskName = name.lowercase()
-    if (
-        (taskName.startsWith("merge") && taskName.endsWith("assets")) ||
-        taskName.contains("lint")
-    ) {
-        dependsOn(generateRulexDb)
+// rulex.db собирается отдельно под каждый вариант и подключается через
+// Variant API как сгенерированные assets: AGP сам задаёт выходной каталог и
+// зависимости всех задач, читающих assets (merge*Assets, lint).
+androidComponents {
+    onVariants { variant ->
+        val variantName = variant.name.replaceFirstChar { it.uppercase() }
+        val generateRulexDb = tasks.register<GenerateRulexDbTask>("generate${variantName}RulexDb") {
+            sourceDir.set(layout.projectDirectory.dir("src/main/cpp/third_party/rulex/data"))
+        }
+        variant.sources.assets?.addGeneratedSourceDirectory(
+            generateRulexDb,
+            GenerateRulexDbTask::outputDir
+        )
     }
 }

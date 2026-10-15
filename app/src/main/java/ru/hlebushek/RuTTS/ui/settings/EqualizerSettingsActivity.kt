@@ -7,10 +7,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.commit
 import com.google.android.material.appbar.MaterialToolbar
 import ru.hlebushek.RuTTS.R
+import ru.hlebushek.RuTTS.ui.SystemBars
 
 class EqualizerSettingsActivity : AppCompatActivity(R.layout.activity_engine_settings) {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        SystemBars.applyInsets(this)
 
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         toolbar.title = getString(R.string.equalizer_settings_title)

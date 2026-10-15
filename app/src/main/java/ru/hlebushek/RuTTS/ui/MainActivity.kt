@@ -10,6 +10,7 @@ import ru.hlebushek.RuTTS.ui.settings.RuttsSettingsFragment
 class MainActivity : AppCompatActivity(R.layout.activity_engine_settings) {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        SystemBars.applyInsets(this)
 
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         toolbar.title = getString(R.string.engine_settings_title)
