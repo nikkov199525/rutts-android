@@ -10,9 +10,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import java.nio.charset.Charset
-import java.util.Locale
-import ru.hlebushek.RuTTS.engine.NativeRulex
 import ru.hlebushek.RuTTS.engine.RulexEngine
 
 class RulexProbeReceiver : BroadcastReceiver() {
@@ -27,24 +24,13 @@ class RulexProbeReceiver : BroadcastReceiver() {
         val text = encodedText?.let(::decodeBase64Text)
             ?: intent.getStringExtra(extraText)?.takeIf { it.isNotBlank() }
             ?: defaultText
-        val mode = intent.getStringExtra(extraMode).orEmpty()
         val returnBase64 = encodedText != null
 
         scope.launch {
             try {
                 val engine = RulexEngine(appContext)
                 engine.warmUp()
-                val result = if (mode == modeLexbases) {
-                    NativeRulex.nativeDebugLexbases(
-                        text.lowercase(Locale.ROOT).toByteArray(koi8Charset)
-                    ).toString(koi8Charset)
-                } else if (mode == modePrefixes) {
-                    NativeRulex.nativeDebugPrefixes(
-                        text.lowercase(Locale.ROOT).toByteArray(koi8Charset)
-                    ).toString(koi8Charset)
-                } else {
-                    engine.applyToRussianWords(text)
-                }
+                val result = engine.applyToRussianWords(text)
                 pendingResult.setResultCode(Activity.RESULT_OK)
                 pendingResult.setResultData(
                     if (returnBase64) encodeBase64Text(result) else result
@@ -65,11 +51,7 @@ class RulexProbeReceiver : BroadcastReceiver() {
         private const val actionApply = "ru.hlebushek.RuTTS.DEBUG_RULEX"
         private const val extraText = "text"
         private const val extraTextBase64 = "text_base64"
-        private const val extraMode = "mode"
         private const val defaultText = "Я родился!"
-        private const val modeLexbases = "lexbases"
-        private const val modePrefixes = "prefixes"
-        private val koi8Charset = Charset.forName("KOI8-R")
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
         private fun decodeBase64Text(value: String): String {
