@@ -1,8 +1,10 @@
 package ru.hlebushek.RuTTS.engine
 
+import android.content.Context
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.os.Bundle
 import android.os.SystemClock
 import android.speech.tts.SynthesisCallback
 import android.speech.tts.SynthesisRequest
@@ -21,12 +23,14 @@ class RuttsTextToSpeechService : TextToSpeechService() {
     private lateinit var repository: ConfigRepository
     private lateinit var rulexEngine: RulexEngine
     private lateinit var textPreprocessor: TextPreprocessor
+    private var audioManager: AudioManager? = null
 
     private val requestGeneration = AtomicLong(0)
 
     override fun onCreate() {
         super.onCreate()
         repository = ConfigRepository(this)
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         rulexEngine = RulexEngine(this)
         textPreprocessor = TextPreprocessor(
             rulexEngine = rulexEngine,
@@ -166,7 +170,7 @@ class RuttsTextToSpeechService : TextToSpeechService() {
             val directStartedAt = SystemClock.elapsedRealtimeNanos()
             logLatency(directStartedAt, "direct request entered")
             val maxChunkSize = androidChunkSize(callback)
-            val outputSampleRate = platformOutputSampleRate(config.outputSampleRate)
+            val outputSampleRate = platformOutputSampleRate(config.outputSampleRate, request.params)
             val streamingCallback = if (equalizerSettings.isFlat) {
                 callback
             } else {
@@ -368,10 +372,13 @@ class RuttsTextToSpeechService : TextToSpeechService() {
         return end
     }
 
-    private fun platformOutputSampleRate(fallbackSampleRate: Int): Int {
-        return AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC)
+    private fun platformOutputSampleRate(fallbackSampleRate: Int, requestParams: Bundle? = null): Int {
+        val nativeSampleRate = AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC)
             .takeIf { it in MIN_OUTPUT_SAMPLE_RATE..MAX_OUTPUT_SAMPLE_RATE }
-            ?: fallbackSampleRate
+            ?: return fallbackSampleRate
+        // На Bluetooth — на 1 Гц ниже родной, чтобы прерывание было мгновенным
+        // (см. BluetoothRouting).
+        return BluetoothRouting.outputSampleRate(audioManager, requestParams, nativeSampleRate)
     }
 
     private fun signalError(callback: SynthesisCallback, requestId: Long, errorCode: Int) {
