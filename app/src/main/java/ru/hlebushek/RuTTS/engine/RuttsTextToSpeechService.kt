@@ -4,7 +4,6 @@ import android.content.Context
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
-import android.os.Bundle
 import android.os.SystemClock
 import android.speech.tts.SynthesisCallback
 import android.speech.tts.SynthesisRequest
@@ -23,20 +22,31 @@ class RuttsTextToSpeechService : TextToSpeechService() {
     private lateinit var repository: ConfigRepository
     private lateinit var rulexEngine: RulexEngine
     private lateinit var textPreprocessor: TextPreprocessor
-    private var audioManager: AudioManager? = null
+    private lateinit var bluetoothRouting: BluetoothRouting
+
+    // Родная частота выхода — один раз на жизнь сервиса.
+    private var nativeOutputSampleRate: Int? = null
 
     private val requestGeneration = AtomicLong(0)
 
     override fun onCreate() {
         super.onCreate()
         repository = ConfigRepository(this)
-        audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+        nativeOutputSampleRate = AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC)
+            .takeIf { it in MIN_OUTPUT_SAMPLE_RATE..MAX_OUTPUT_SAMPLE_RATE }
+        bluetoothRouting = BluetoothRouting(getSystemService(Context.AUDIO_SERVICE) as? AudioManager)
+        bluetoothRouting.start()
         rulexEngine = RulexEngine(this)
         textPreprocessor = TextPreprocessor(
             rulexEngine = rulexEngine,
             emojiTextRewriter = EmojiTextRewriter(this),
             phoneNumberTextRewriter = PhoneNumberTextRewriter(this)
         )
+    }
+
+    override fun onDestroy() {
+        bluetoothRouting.stop()
+        super.onDestroy()
     }
 
     override fun onGetLanguage(): Array<String> {
@@ -170,7 +180,7 @@ class RuttsTextToSpeechService : TextToSpeechService() {
             val directStartedAt = SystemClock.elapsedRealtimeNanos()
             logLatency(directStartedAt, "direct request entered")
             val maxChunkSize = androidChunkSize(callback)
-            val outputSampleRate = platformOutputSampleRate(config.outputSampleRate, request.params)
+            val outputSampleRate = platformOutputSampleRate(config.outputSampleRate)
             val streamingCallback = if (equalizerSettings.isFlat) {
                 callback
             } else {
@@ -372,13 +382,11 @@ class RuttsTextToSpeechService : TextToSpeechService() {
         return end
     }
 
-    private fun platformOutputSampleRate(fallbackSampleRate: Int, requestParams: Bundle? = null): Int {
-        val nativeSampleRate = AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC)
-            .takeIf { it in MIN_OUTPUT_SAMPLE_RATE..MAX_OUTPUT_SAMPLE_RATE }
-            ?: return fallbackSampleRate
+    private fun platformOutputSampleRate(fallbackSampleRate: Int): Int {
+        val nativeSampleRate = nativeOutputSampleRate ?: return fallbackSampleRate
         // На Bluetooth — на 1 Гц ниже родной, чтобы прерывание было мгновенным
         // (см. BluetoothRouting).
-        return BluetoothRouting.outputSampleRate(audioManager, requestParams, nativeSampleRate)
+        return bluetoothRouting.outputSampleRate(nativeSampleRate)
     }
 
     private fun signalError(callback: SynthesisCallback, requestId: Long, errorCode: Int) {
