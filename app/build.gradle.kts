@@ -215,6 +215,13 @@ android {
         }
     }
 
+    // Из переводов библиотек (appcompat, Material и др.) оставляем только
+    // русский и английский. Строки самого приложения лежат в ресурсах по
+    // умолчанию.
+    androidResources {
+        localeFilters += listOf("ru", "en")
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
