@@ -98,15 +98,13 @@ object NativeRutts {
         )
     }
 
+    // Буфер ru_tts равен максимальному блоку фреймворка, как в SmartVoice
+    // (audioBufferSize = callback.getMaxBufferSize()).
     internal fun streamingWaveBufferSize(maxChunkSize: Int): Int =
-        minOf(
-            lowLatencyStreamingWaveBufferSize,
-            maxChunkSize.coerceAtLeast(minStreamingWaveBufferSize)
-        )
+        maxChunkSize.coerceAtLeast(minStreamingWaveBufferSize)
 
     private const val streamingWaveBufferConfigIndex = 5
     private const val minStreamingWaveBufferSize = 128
-    private const val lowLatencyStreamingWaveBufferSize = 256
 
 }
 

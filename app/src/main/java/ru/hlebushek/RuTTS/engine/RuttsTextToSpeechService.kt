@@ -1,7 +1,6 @@
 package ru.hlebushek.RuTTS.engine
 
 import android.annotation.TargetApi
-import android.content.Context
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
@@ -21,9 +20,7 @@ class RuttsTextToSpeechService : TextToSpeechService() {
     private lateinit var repository: ConfigRepository
     private lateinit var rulexEngine: RulexEngine
     private lateinit var textPreprocessor: TextPreprocessor
-    private lateinit var bluetoothRouting: BluetoothRouting
-
-    // Родная частота выхода — один раз на жизнь сервиса.
+    // Родная частота выхода — один раз на жизнь сервиса, как в SmartVoice.
     private var nativeOutputSampleRate: Int? = null
 
     private val requestGeneration = AtomicLong(0)
@@ -33,19 +30,12 @@ class RuttsTextToSpeechService : TextToSpeechService() {
         repository = ConfigRepository(this)
         nativeOutputSampleRate = AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC)
             .takeIf { it in MIN_OUTPUT_SAMPLE_RATE..MAX_OUTPUT_SAMPLE_RATE }
-        bluetoothRouting = BluetoothRouting(getSystemService(Context.AUDIO_SERVICE) as? AudioManager)
-        bluetoothRouting.start()
         rulexEngine = RulexEngine(this)
         textPreprocessor = TextPreprocessor(
             rulexEngine = rulexEngine,
             emojiTextRewriter = EmojiTextRewriter(this),
             phoneNumberTextRewriter = PhoneNumberTextRewriter(this)
         )
-    }
-
-    override fun onDestroy() {
-        bluetoothRouting.stop()
-        super.onDestroy()
     }
 
     override fun onGetLanguage(): Array<String> {
@@ -71,7 +61,6 @@ class RuttsTextToSpeechService : TextToSpeechService() {
 
     override fun onSynthesizeText(request: SynthesisRequest, callback: SynthesisCallback) {
         val requestId = requestGeneration.incrementAndGet()
-        NativeRutts.requestStop()
         try {
             synthesizeText(request, callback, requestId)
         } catch (_: InterruptedException) {
@@ -101,15 +90,11 @@ class RuttsTextToSpeechService : TextToSpeechService() {
             signalError(callback, requestId)
             return
         }
-        if (!isRequestSupported(request)) {
-            Log.e(logTag, "request not supported")
-            signalError(callback, requestId)
-            return
-        }
-
+        // Как в SmartVoice: голос и язык запроса не проверяются — любой запрос
+        // синтезируется голосом движка; пустой текст закрывается одним done()
+        // без start().
         val text = extractRequestText(request)
         if (text.isBlank()) {
-            startSilentUtterance(callback, requestId)
             return
         }
 
@@ -236,18 +221,6 @@ class RuttsTextToSpeechService : TextToSpeechService() {
         )
     }
 
-    private fun isRequestSupported(request: SynthesisRequest): Boolean {
-        val voiceName = extractRequestVoiceName(request)
-        if (voiceName != null && voiceName != RuttsTtsContract.voiceName) {
-            return false
-        }
-
-        val language = request.language?.takeIf { it.isNotBlank() } ?: return true
-        val country = request.country?.takeIf { it.isNotBlank() }
-        val variant = request.variant?.takeIf { it.isNotBlank() }
-        return onIsLanguageAvailable(language, country, variant) != TextToSpeech.LANG_NOT_SUPPORTED
-    }
-
     private fun extractRequestText(request: SynthesisRequest): String {
         val charSequenceText = runCatching {
             SynthesisRequest::class.java.getMethod("getCharSequenceText").invoke(request) as? CharSequence
@@ -259,12 +232,6 @@ class RuttsTextToSpeechService : TextToSpeechService() {
         return runCatching {
             SynthesisRequest::class.java.getMethod("getText").invoke(request) as? String
         }.getOrNull().orEmpty()
-    }
-
-    private fun extractRequestVoiceName(request: SynthesisRequest): String? {
-        return runCatching {
-            SynthesisRequest::class.java.getMethod("getVoiceName").invoke(request) as? String
-        }.getOrNull()?.takeIf { it.isNotBlank() }
     }
 
     private fun extractVolumePercent(request: SynthesisRequest, defaultVolumePercent: Int): Int {
@@ -352,10 +319,7 @@ class RuttsTextToSpeechService : TextToSpeechService() {
     }
 
     private fun platformOutputSampleRate(fallbackSampleRate: Int): Int {
-        val nativeSampleRate = nativeOutputSampleRate ?: return fallbackSampleRate
-        // На Bluetooth — на 1 Гц ниже родной, чтобы прерывание было мгновенным
-        // (см. BluetoothRouting).
-        return bluetoothRouting.outputSampleRate(nativeSampleRate)
+        return nativeOutputSampleRate ?: fallbackSampleRate
     }
 
     private fun scalePercent(baseValue: Int, systemPercent: Int, minValue: Int, maxValue: Int): Int {
