@@ -9,8 +9,8 @@ import ru.hlebushek.RuTTS.config.RuttsConfig
 
 class RuttsTtsContractTest {
     @Test
-    fun startsStreamingBeforeAndroidChunkIsFull() {
-        assertEquals(256, NativeRutts.streamingWaveBufferSize(8192))
+    fun waveBufferMatchesAndroidChunk() {
+        assertEquals(8192, NativeRutts.streamingWaveBufferSize(8192))
         assertEquals(128, NativeRutts.streamingWaveBufferSize(64))
     }
 
