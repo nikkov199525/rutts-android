@@ -40,8 +40,7 @@
     <string name="pref_intonational_gap_factor">Интонационная пауза</string>
     <string name="pref_dec_sep_point">Использовать точку как десятичный разделитель</string>
     <string name="pref_dec_sep_comma">Использовать запятую как десятичный разделитель</string>
-    <string name="pref_use_covox">Звучать как через Covox</string>
-    <string name="pref_use_covox_summary">8-битный выход и линейное восстановление Covox/DOSBox с выбранной частотой дискретизации.</string>
+    <string name="sample_rate_factor">Множитель частоты дискретизации</string>
     <string name="pref_silence_at_begin">Тишина в начале (мс)</string>
     <string name="pref_silence_at_end">Тишина в конце (мс)</string>
 

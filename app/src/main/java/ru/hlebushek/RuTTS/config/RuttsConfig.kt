@@ -33,8 +33,8 @@ data class RuttsConfig(
     val useAlternativeVoice: Boolean = false,
     val useRateBoost: Boolean = false,
     val useNewRateAlgorithm: Boolean = false,
-    val useCovox: Boolean = false,
     val samplesPerSec: Int = 10000,
+    val sampleRateFactor: Int = 1,
     val waveBufferSize: Int = 128,
     val silenceAtBegin: Int = 0,
     val silenceAtEnd: Int = 0,
@@ -51,7 +51,7 @@ data class RuttsConfig(
     val intonation: Int = 100
 ) {
     val outputSampleRate: Int
-        get() = samplesPerSec.coerceIn(8000, 192000)
+        get() = (samplesPerSec * sampleRateFactor).coerceIn(8000, 192000)
 }
 
 data class NumericPreferenceSpec(
@@ -67,8 +67,8 @@ object PreferenceKeys {
     const val USE_ALTERNATIVE_VOICE = "use_alternative_voice"
     const val USE_RATE_BOOST = "use_rate_boost"
     const val USE_NEW_RATE_ALGORITHM = "use_new_rate_algorithm"
-    const val USE_COVOX = "use_covox"
     const val SAMPLES_PER_SEC = "samples_per_sec"
+    const val SAMPLE_RATE_FACTOR = "sampleRateFactor"
     const val SILENCE_AT_BEGIN = "silence_at_begin"
     const val SILENCE_AT_END = "silence_at_end"
     const val GENERAL_GAP_FACTOR = "general_gap_factor"

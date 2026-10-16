@@ -15,12 +15,14 @@ class RuttsTtsContractTest {
     }
 
     @Test
-    fun covoxPreservesTheSelectedSampleRate() {
-        assertFalse(RuttsConfig().useCovox)
+    fun sampleRateFactorMultipliesTheSampleRate() {
+        assertEquals(1, RuttsConfig().sampleRateFactor)
+        assertEquals(20000, RuttsConfig(sampleRateFactor = 2).outputSampleRate)
+        assertEquals(40000, RuttsConfig(sampleRateFactor = 4).outputSampleRate)
         assertEquals(10000, RuttsConfig().outputSampleRate)
         assertEquals(
             11025,
-            RuttsConfig(useCovox = true, samplesPerSec = 11025).outputSampleRate
+            RuttsConfig(samplesPerSec = 11025).outputSampleRate
         )
     }
 
