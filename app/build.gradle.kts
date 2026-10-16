@@ -251,7 +251,7 @@ dependencies {
 
 tasks.configureEach {
     if ((name.startsWith("merge") && name.endsWith("Assets")) ||
-        name.contains("LintVital", ignoreCase = true)) {
+        name.contains("Lint", ignoreCase = true)) {
         dependsOn(generateRulexDb)
     }
 }
