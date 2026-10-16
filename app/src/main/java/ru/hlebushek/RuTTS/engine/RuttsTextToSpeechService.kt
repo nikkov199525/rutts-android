@@ -158,8 +158,7 @@ class RuttsTextToSpeechService : TextToSpeechService() {
             SystemClock.elapsedRealtimeNanos(),
             "streaming decision direct=$directStreaming flat=${equalizerSettings.isFlat} " +
                 "rateBoost=${config.useRateBoost} newRate=${config.useNewRateAlgorithm} " +
-                "rulex=${config.useRulex} softResampling=${config.useSoftResampling} " +
-                "interpolation=${config.interpolationMultiplier} covox=${config.useCovox}"
+                "rulex=${config.useRulex} covox=${config.useCovox}"
         )
         if (directStreaming) {
             val directStartedAt = SystemClock.elapsedRealtimeNanos()

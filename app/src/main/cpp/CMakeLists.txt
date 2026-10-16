@@ -41,9 +41,6 @@ add_library(
     third_party/ru_tts/src/transcription.c
     third_party/ru_tts/src/utterance.c
     third_party/sonic/sonic.c
-    third_party/libsamplerate/samplerate.c
-    third_party/libsamplerate/src_linear.c
-    third_party/libsamplerate/src_zoh.c
 )
 
 target_include_directories(
@@ -53,7 +50,6 @@ target_include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lmdb/libraries/liblmdb
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ru_tts/src
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/sonic
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libsamplerate
 )
 
 target_link_libraries(

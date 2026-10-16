@@ -15,15 +15,9 @@ class RuttsTtsContractTest {
     }
 
     @Test
-    fun defaultsToOriginalToneAndCanEnableSoftResampling() {
-        assertFalse(RuttsConfig().useSoftResampling)
-        assertTrue(RuttsConfig(useSoftResampling = true).useSoftResampling)
-    }
-
-    @Test
     fun covoxPreservesTheSelectedSampleRate() {
         assertFalse(RuttsConfig().useCovox)
-        assertEquals(40000, RuttsConfig(interpolationMultiplier = 4).outputSampleRate)
+        assertEquals(10000, RuttsConfig().outputSampleRate)
         assertEquals(
             11025,
             RuttsConfig(useCovox = true, samplesPerSec = 11025).outputSampleRate
@@ -32,14 +26,7 @@ class RuttsTtsContractTest {
 
     @Test
     fun keepsDirectStreamingForEveryAudioMode() {
-        listOf(1, 2, 4).forEach { multiplier ->
-            assertTrue(
-                RuttsTtsContract.shouldUseDirectStreaming(
-                    RuttsConfig(interpolationMultiplier = multiplier),
-                    equalizerIsFlat = true
-                )
-            )
-        }
+        assertTrue(RuttsTtsContract.shouldUseDirectStreaming(RuttsConfig(), equalizerIsFlat = true))
         assertTrue(RuttsTtsContract.shouldUseDirectStreaming(RuttsConfig(), equalizerIsFlat = false))
         assertTrue(
             RuttsTtsContract.shouldUseDirectStreaming(

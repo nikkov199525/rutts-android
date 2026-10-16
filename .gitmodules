@@ -14,6 +14,3 @@
 	path = app/src/main/cpp/third_party/ru_tts
 	url = https://github.com/nikkov199525/ru_tts.git
 	branch = main
-[submodule "app/src/main/cpp/third_party/libsamplerate"]
-	path = app/src/main/cpp/third_party/libsamplerate
-	url = https://github.com/nikkov199525/libsamplerate

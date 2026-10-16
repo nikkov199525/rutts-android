@@ -236,8 +236,6 @@ class TtsProbeReceiver : BroadcastReceiver() {
         private const val extraBaseRate = "base_rate"
         private const val extraBasePitch = "base_pitch"
         private const val extraSampleRate = "sample_rate"
-        private const val extraInterpolationMultiplier = "interpolation_multiplier"
-        private const val extraInterpolationAlgorithm = "interpolation_algorithm"
         private const val extraSilenceAtEnd = "silence_at_end"
         private const val extraEqBass = "eq_bass"
         private const val extraEqMid = "eq_mid"
@@ -245,7 +243,6 @@ class TtsProbeReceiver : BroadcastReceiver() {
         private const val extraUseRulex = "use_rulex"
         private const val extraUseNewRateAlgorithm = "use_new_rate_algorithm"
         private const val extraUseRateBoost = "use_rate_boost"
-        private const val extraUseSoftResampling = "use_soft_resampling"
         private const val extraIntonation = "intonation"
         private const val defaultText = "\u042f \u0440\u043e\u0434\u0438\u043b\u0441\u044f!"
         private const val maxRepeatCount = 50
@@ -283,14 +280,6 @@ class TtsProbeReceiver : BroadcastReceiver() {
                 .putString(PreferenceKeys.RUNTIME_SPEECH_RATE, intent.getIntExtra(extraBaseRate, 100).toString())
                 .putString(PreferenceKeys.RUNTIME_PITCH, intent.getIntExtra(extraBasePitch, 100).toString())
                 .putString(PreferenceKeys.SAMPLES_PER_SEC, intent.getIntExtra(extraSampleRate, 10_000).toString())
-                .putString(
-                    PreferenceKeys.INTERPOLATION_MULTIPLIER,
-                    intent.getIntExtra(extraInterpolationMultiplier, 1).toString()
-                )
-                .putString(
-                    PreferenceKeys.INTERPOLATION_ALGORITHM,
-                    intent.getIntExtra(extraInterpolationAlgorithm, 0).toString()
-                )
                 .putInt(PreferenceKeys.SILENCE_AT_END, intent.getIntExtra(extraSilenceAtEnd, 0))
                 .putInt(PreferenceKeys.EQ_BASS, intent.getIntExtra(extraEqBass, 0))
                 .putInt(PreferenceKeys.EQ_MID, intent.getIntExtra(extraEqMid, 0))
@@ -301,10 +290,6 @@ class TtsProbeReceiver : BroadcastReceiver() {
                     intent.getBooleanExtra(extraUseNewRateAlgorithm, false)
                 )
                 .putBoolean(PreferenceKeys.USE_RATE_BOOST, intent.getBooleanExtra(extraUseRateBoost, false))
-                .putBoolean(
-                    PreferenceKeys.USE_SOFT_RESAMPLING,
-                    intent.getBooleanExtra(extraUseSoftResampling, false)
-                )
                 .putString(PreferenceKeys.INTONATION, intent.getIntExtra(extraIntonation, 100).toString())
                 .commit()
         }

@@ -17,28 +17,19 @@
 
 #include "coder.h"
 #include "covox.h"
-#include "samplerate.h"
 #include "synth_engine.h"
 
 namespace {
 constexpr int kRulexBufferSize = 256;
 constexpr size_t kConfigVolumePercentIndex = 1;
 constexpr size_t kConfigSampleRateIndex = 2;
-constexpr size_t kConfigInterpolationMultiplierIndex = 3;
-constexpr size_t kConfigInterpolationAlgorithmIndex = 4;
-constexpr size_t kConfigUseRateBoostIndex = 9;
-constexpr size_t kConfigUseCovoxIndex = 23;
+constexpr size_t kConfigUseRateBoostIndex = 7;
+constexpr size_t kConfigUseCovoxIndex = 21;
 constexpr int kFallbackSampleRate = 10000;
 constexpr int kMinSampleRate = 8000;
 constexpr int kMaxSampleRate = 192000;
 constexpr double kPi = 3.14159265358979323846;
 SynthEngine g_engine;
-
-int NormalizeInterpolationMultiplier(int value) {
-    if (value < 2) return 1;
-    if (value > 2) return 4;
-    return 2;
-}
 
 #if defined(RUTTS_TRACE_LATENCY)
 long long ElapsedRealtimeMs() {
@@ -63,20 +54,15 @@ public:
 
     Pcm8ToPcm16Adapter(
         int source_sample_rate,
-        int interpolation_multiplier,
-        int interpolation_algorithm,
         int output_sample_rate,
-        bool use_soft_resampling,
         bool use_covox,
         float covox_volume,
         AudioConsumer consumer)
-        : interpolation_multiplier_(NormalizeInterpolationMultiplier(interpolation_multiplier)),
-          input_sample_rate_(std::clamp(
-              source_sample_rate * interpolation_multiplier_,
+        : input_sample_rate_(std::clamp(
+              source_sample_rate,
               kMinSampleRate,
               kMaxSampleRate)),
           output_sample_rate_(output_sample_rate),
-          use_soft_resampling_(use_soft_resampling),
           use_covox_(use_covox),
           covox_volume_(std::clamp(covox_volume, 0.0F, 1.0F)),
           consumer_(std::move(consumer)) {
@@ -90,27 +76,13 @@ public:
                 static_cast<std::uint32_t>(output_sample_rate_));
             return;
         }
-        if (interpolation_multiplier_ != 1) {
-            int error = 0;
-            interpolation_state_ = src_new(
-                interpolation_algorithm == 1 ? SRC_ZERO_ORDER_HOLD : SRC_LINEAR,
-                1,
-                &error);
-            valid_ = interpolation_state_ != nullptr && error == 0;
-        }
-        if (valid_ && input_sample_rate_ != output_sample_rate_) {
+        if (input_sample_rate_ != output_sample_rate_) {
             BuildFilter();
         }
     }
 
     Pcm8ToPcm16Adapter(const Pcm8ToPcm16Adapter&) = delete;
     Pcm8ToPcm16Adapter& operator=(const Pcm8ToPcm16Adapter&) = delete;
-
-    ~Pcm8ToPcm16Adapter() {
-        if (interpolation_state_) {
-            src_delete(interpolation_state_);
-        }
-    }
 
     bool valid() const {
         return valid_ && static_cast<bool>(consumer_);
@@ -124,20 +96,13 @@ public:
             return PushCovoxPcm8(pcm8, size);
         }
 
-        if (interpolation_multiplier_ == 1 && input_sample_rate_ == output_sample_rate_) {
+        if (input_sample_rate_ == output_sample_rate_) {
             return EmitPcm8AsPcm16(pcm8, size);
         }
 
-        interpolation_input_.resize(size);
+        input_.reserve(input_.size() + size);
         for (size_t index = 0; index < size; ++index) {
-            interpolation_input_[index] =
-                static_cast<float>(static_cast<int>(pcm8[index]) - 128) / 128.0f;
-        }
-        if (interpolation_multiplier_ == 1) {
-            input_.insert(input_.end(), interpolation_input_.begin(), interpolation_input_.end());
-            interpolation_input_.clear();
-        } else if (!Interpolate(false)) {
-            return false;
+            input_.push_back(static_cast<float>(static_cast<int>(pcm8[index]) - 128) / 128.0f);
         }
         return Process(false);
     }
@@ -149,22 +114,16 @@ public:
         if (use_covox_) {
             return PushCovoxPcm16(pcm16_bytes, size);
         }
-        if (interpolation_multiplier_ == 1 && input_sample_rate_ == output_sample_rate_) {
+        if (input_sample_rate_ == output_sample_rate_) {
             return consumer_(pcm16_bytes, size);
         }
 
         const size_t sample_count = size / sizeof(std::int16_t);
-        interpolation_input_.resize(sample_count);
+        input_.reserve(input_.size() + sample_count);
         for (size_t index = 0; index < sample_count; ++index) {
             std::int16_t sample = 0;
             std::memcpy(&sample, pcm16_bytes + index * sizeof(sample), sizeof(sample));
-            interpolation_input_[index] = static_cast<float>(sample) / 32768.0f;
-        }
-        if (interpolation_multiplier_ == 1) {
-            input_.insert(input_.end(), interpolation_input_.begin(), interpolation_input_.end());
-            interpolation_input_.clear();
-        } else if (!Interpolate(false)) {
-            return false;
+            input_.push_back(static_cast<float>(sample) / 32768.0f);
         }
         return Process(false);
     }
@@ -180,9 +139,6 @@ public:
                 covox_output_.data(),
                 covox_output_.size());
             return produced == 0 || EmitPcm16(covox_output_.data(), produced);
-        }
-        if (interpolation_multiplier_ != 1 && !Interpolate(true)) {
-            return false;
         }
         return Process(true);
     }
@@ -250,7 +206,7 @@ private:
     void BuildFilter() {
         const double ratio = static_cast<double>(output_sample_rate_) /
             static_cast<double>(input_sample_rate_);
-        const double cutoff = (use_soft_resampling_ ? 0.90 : 1.00) * std::min(1.0, ratio);
+        const double cutoff = std::min(1.0, ratio);
         coefficients_.resize(kPhaseCount * kTapCount);
         for (int phase = 0; phase < kPhaseCount; ++phase) {
             const double fraction = static_cast<double>(phase) / kPhaseCount;
@@ -275,51 +231,6 @@ private:
                     coefficients_[phase * kTapCount + tap] / sum);
             }
         }
-    }
-
-    bool Interpolate(bool end_of_input) {
-        if (!interpolation_state_) {
-            valid_ = false;
-            return false;
-        }
-
-        const float end_marker = 0.0f;
-        const float* source = end_of_input ? &end_marker : interpolation_input_.data();
-        long remaining = end_of_input ? 0L : static_cast<long>(interpolation_input_.size());
-        do {
-            const size_t output_capacity = std::max<size_t>(
-                256,
-                (static_cast<size_t>(std::max(remaining, 0L)) + 1U) *
-                    static_cast<size_t>(interpolation_multiplier_) + 32U);
-            interpolation_output_.resize(output_capacity);
-            SRC_DATA data{};
-            data.data_in = source;
-            data.input_frames = remaining;
-            data.data_out = interpolation_output_.data();
-            data.output_frames = static_cast<long>(interpolation_output_.size());
-            data.src_ratio = static_cast<double>(interpolation_multiplier_);
-            data.end_of_input = end_of_input ? 1 : 0;
-            if (src_process(interpolation_state_, &data) != 0) {
-                valid_ = false;
-                return false;
-            }
-            if (data.output_frames_gen > 0) {
-                input_.insert(
-                    input_.end(),
-                    interpolation_output_.begin(),
-                    interpolation_output_.begin() + data.output_frames_gen);
-            }
-            if (data.input_frames_used > 0) {
-                source += data.input_frames_used;
-                remaining -= data.input_frames_used;
-            }
-            if (data.input_frames_used == 0 && data.output_frames_gen == 0) {
-                break;
-            }
-        } while (remaining > 0 || end_of_input);
-
-        interpolation_input_.clear();
-        return true;
     }
 
     bool Process(bool end_of_input) {
@@ -391,21 +302,16 @@ private:
         return consumer_(reinterpret_cast<const std::uint8_t*>(pcm16), sample_count * sizeof(std::int16_t));
     }
 
-    int interpolation_multiplier_;
     int input_sample_rate_;
     int output_sample_rate_;
-    bool use_soft_resampling_;
     bool use_covox_;
     float covox_volume_;
     AudioConsumer consumer_;
     bool valid_ = true;
-    SRC_STATE* interpolation_state_ = nullptr;
     static constexpr int kHalfTapCount = 16;
     static constexpr int kTapCount = kHalfTapCount * 2;
     static constexpr int kPhaseCount = 512;
     std::vector<float> input_;
-    std::vector<float> interpolation_input_;
-    std::vector<float> interpolation_output_;
     std::vector<float> coefficients_;
     std::vector<std::int16_t> output_;
     covox_linear_state_t covox_state_{};
@@ -488,8 +394,7 @@ Java_ru_hlebushek_RuTTS_engine_NativeRutts_nativeSynthesizeStreamingRaw(
     jintArray configArray,
     jobject callback,
     jint outputSampleRate,
-    jint maxChunkSize,
-    jboolean useSoftResampling) {
+    jint maxChunkSize) {
     if (!env || !callback) {
         return JNI_FALSE;
     }
@@ -570,12 +475,6 @@ Java_ru_hlebushek_RuTTS_engine_NativeRutts_nativeSynthesizeStreamingRaw(
     const int sourceSampleRate = config.size() > kConfigSampleRateIndex
         ? std::clamp(config[kConfigSampleRateIndex], kMinSampleRate, kMaxSampleRate)
         : kFallbackSampleRate;
-    const int interpolationMultiplier = config.size() > kConfigInterpolationMultiplierIndex
-        ? NormalizeInterpolationMultiplier(config[kConfigInterpolationMultiplierIndex])
-        : 1;
-    const int interpolationAlgorithm = config.size() > kConfigInterpolationAlgorithmIndex
-        ? config[kConfigInterpolationAlgorithmIndex]
-        : 0;
     const bool useRateBoost = config.size() > kConfigUseRateBoostIndex &&
         config[kConfigUseRateBoostIndex] != 0;
     const bool useCovox = config.size() > kConfigUseCovoxIndex &&
@@ -589,10 +488,7 @@ Java_ru_hlebushek_RuTTS_engine_NativeRutts_nativeSynthesizeStreamingRaw(
         kMaxSampleRate);
     Pcm8ToPcm16Adapter adapter(
         sourceSampleRate,
-        interpolationMultiplier,
-        interpolationAlgorithm,
         outputSampleRateClamped,
-        useSoftResampling == JNI_TRUE,
         useCovox,
         static_cast<float>(volumePercent) / 100.0F,
         emitPcm16);

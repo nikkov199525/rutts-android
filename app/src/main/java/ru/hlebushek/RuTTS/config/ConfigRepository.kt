@@ -33,6 +33,7 @@ class ConfigRepository(context: Context) {
         migrateLegacyBooleanPreferences()
         migrateLegacySeekBarPreferences()
         migrateLegacyRuntimePreferences()
+        removeObsoletePreferences()
     }
 
     fun loadSynthesisSettings(): SynthesisSettings {
@@ -93,7 +94,6 @@ class ConfigRepository(context: Context) {
     }
 
     private fun loadConfig(values: Map<String, *>): RuttsConfig {
-        val useCovox = readBoolean(values, PreferenceKeys.USE_COVOX, false)
         return RuttsConfig(
             useRulex = readBoolean(values, PreferenceKeys.USE_RULEX, true),
             readEmojis = readBoolean(values, PreferenceKeys.READ_EMOJIS, false),
@@ -101,21 +101,8 @@ class ConfigRepository(context: Context) {
             useAlternativeVoice = readBoolean(values, PreferenceKeys.USE_ALTERNATIVE_VOICE, false),
             useRateBoost = readBoolean(values, PreferenceKeys.USE_RATE_BOOST, false),
             useNewRateAlgorithm = readBoolean(values, PreferenceKeys.USE_NEW_RATE_ALGORITHM, false),
-            useSoftResampling = readBoolean(values, PreferenceKeys.USE_SOFT_RESAMPLING, false),
-            useCovox = useCovox,
+            useCovox = readBoolean(values, PreferenceKeys.USE_COVOX, false),
             samplesPerSec = readInt(values, PreferenceKeys.SAMPLES_PER_SEC, 10000, 8000, 16000),
-            interpolationMultiplier = if (useCovox) {
-                1
-            } else {
-                normalizeInterpolationMultiplier(
-                    readInt(values, PreferenceKeys.INTERPOLATION_MULTIPLIER, 1, 1, 4)
-                )
-            },
-            interpolationAlgorithm = if (readInt(values, PreferenceKeys.INTERPOLATION_ALGORITHM, 0, 0, 1) == 0) {
-                InterpolationAlgorithm.LINEAR
-            } else {
-                InterpolationAlgorithm.ZERO_ORDER_HOLD
-            },
             waveBufferSize = 128,
             silenceAtBegin = readInt(values, PreferenceKeys.SILENCE_AT_BEGIN, 0, 0, 100),
             silenceAtEnd = readInt(values, PreferenceKeys.SILENCE_AT_END, 0, 0, 100),
@@ -288,11 +275,8 @@ class ConfigRepository(context: Context) {
             putBoolean(PreferenceKeys.USE_ALTERNATIVE_VOICE, false)
             putBoolean(PreferenceKeys.USE_RATE_BOOST, false)
             putBoolean(PreferenceKeys.USE_NEW_RATE_ALGORITHM, false)
-            putBoolean(PreferenceKeys.USE_SOFT_RESAMPLING, false)
             putBoolean(PreferenceKeys.USE_COVOX, false)
             putString(PreferenceKeys.SAMPLES_PER_SEC, "10000")
-            putString(PreferenceKeys.INTERPOLATION_MULTIPLIER, "1")
-            putString(PreferenceKeys.INTERPOLATION_ALGORITHM, "0")
             putInt(PreferenceKeys.SILENCE_AT_BEGIN, 0)
             putInt(PreferenceKeys.SILENCE_AT_END, 0)
             putInt(PreferenceKeys.GENERAL_GAP_FACTOR, 100)
@@ -411,11 +395,20 @@ class ConfigRepository(context: Context) {
         return parsed?.coerceIn(minValue, maxValue) ?: defaultValue
     }
 
-    private fun normalizeInterpolationMultiplier(value: Int): Int {
-        return when {
-            value < 2 -> 1
-            value > 2 -> 4
-            else -> 2
+    // Удалённые настройки: интерполяция и «мягкое новое звучание». Стираем
+    // их значения из хранилища, чтобы не тянуть мусор в копии настроек.
+    private fun removeObsoletePreferences() {
+        val obsoleteKeys = listOf(
+            "interpolation_multiplier",
+            "interpolation_algorithm",
+            "use_soft_resampling"
+        )
+        val stored = preferences.all
+        if (obsoleteKeys.none { it in stored }) {
+            return
+        }
+        preferences.edit {
+            obsoleteKeys.forEach { remove(it) }
         }
     }
 
@@ -444,7 +437,6 @@ class ConfigRepository(context: Context) {
             PreferenceKeys.USE_ALTERNATIVE_VOICE,
             PreferenceKeys.USE_RATE_BOOST,
             PreferenceKeys.USE_NEW_RATE_ALGORITHM,
-            PreferenceKeys.USE_SOFT_RESAMPLING,
             PreferenceKeys.USE_COVOX,
             PreferenceKeys.DEC_SEP_POINT,
             PreferenceKeys.DEC_SEP_COMMA
