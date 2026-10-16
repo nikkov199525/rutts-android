@@ -101,8 +101,10 @@ class ConfigRepository(context: Context) {
             useAlternativeVoice = readBoolean(values, PreferenceKeys.USE_ALTERNATIVE_VOICE, false),
             useRateBoost = readBoolean(values, PreferenceKeys.USE_RATE_BOOST, false),
             useNewRateAlgorithm = readBoolean(values, PreferenceKeys.USE_NEW_RATE_ALGORITHM, false),
-            useCovox = readBoolean(values, PreferenceKeys.USE_COVOX, false),
             samplesPerSec = readInt(values, PreferenceKeys.SAMPLES_PER_SEC, 10000, 8000, 16000),
+            sampleRateFactor = normalizeSampleRateFactor(
+                readInt(values, PreferenceKeys.SAMPLE_RATE_FACTOR, 1, 1, 4)
+            ),
             waveBufferSize = 128,
             silenceAtBegin = readInt(values, PreferenceKeys.SILENCE_AT_BEGIN, 0, 0, 100),
             silenceAtEnd = readInt(values, PreferenceKeys.SILENCE_AT_END, 0, 0, 100),
@@ -275,8 +277,8 @@ class ConfigRepository(context: Context) {
             putBoolean(PreferenceKeys.USE_ALTERNATIVE_VOICE, false)
             putBoolean(PreferenceKeys.USE_RATE_BOOST, false)
             putBoolean(PreferenceKeys.USE_NEW_RATE_ALGORITHM, false)
-            putBoolean(PreferenceKeys.USE_COVOX, false)
             putString(PreferenceKeys.SAMPLES_PER_SEC, "10000")
+            putString(PreferenceKeys.SAMPLE_RATE_FACTOR, "1")
             putInt(PreferenceKeys.SILENCE_AT_BEGIN, 0)
             putInt(PreferenceKeys.SILENCE_AT_END, 0)
             putInt(PreferenceKeys.GENERAL_GAP_FACTOR, 100)
@@ -395,13 +397,20 @@ class ConfigRepository(context: Context) {
         return parsed?.coerceIn(minValue, maxValue) ?: defaultValue
     }
 
-    // Удалённые настройки: интерполяция и «мягкое новое звучание». Стираем
+    // Множитель частоты дискретизации: 2 и 4 — как есть, остальное — 1.
+    private fun normalizeSampleRateFactor(value: Int): Int {
+        return if (value == 2 || value == 4) value else 1
+    }
+
+    // Удалённые настройки: прежняя интерполяция, «мягкое новое звучание» и
+    // Covox. Стираем
     // их значения из хранилища, чтобы не тянуть мусор в копии настроек.
     private fun removeObsoletePreferences() {
         val obsoleteKeys = listOf(
             "interpolation_multiplier",
             "interpolation_algorithm",
-            "use_soft_resampling"
+            "use_soft_resampling",
+            "use_covox"
         )
         val stored = preferences.all
         if (obsoleteKeys.none { it in stored }) {
@@ -437,7 +446,6 @@ class ConfigRepository(context: Context) {
             PreferenceKeys.USE_ALTERNATIVE_VOICE,
             PreferenceKeys.USE_RATE_BOOST,
             PreferenceKeys.USE_NEW_RATE_ALGORITHM,
-            PreferenceKeys.USE_COVOX,
             PreferenceKeys.DEC_SEP_POINT,
             PreferenceKeys.DEC_SEP_COMMA
         )

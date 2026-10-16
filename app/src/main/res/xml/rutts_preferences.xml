@@ -68,6 +68,14 @@
             app:title="@string/pref_samples_per_sec"
             app:useSimpleSummaryProvider="true" />
 
+        <ListPreference
+            app:defaultValue="1"
+            app:entries="@array/sample_rate_factor_entries"
+            app:entryValues="@array/sample_rate_factor_values"
+            app:key="sampleRateFactor"
+            app:title="@string/sample_rate_factor"
+            app:useSimpleSummaryProvider="true" />
+
         <EditTextPreference
             app:defaultValue="100"
             app:key="intonation"
@@ -147,12 +155,6 @@
     <PreferenceCategory
         app:key="category_advanced"
         app:title="@string/settings_category_advanced">
-
-        <CheckBoxPreference
-            app:defaultValue="false"
-            app:key="use_covox"
-            app:summary="@string/pref_use_covox_summary"
-            app:title="@string/pref_use_covox" />
 
         <CheckBoxPreference
             app:defaultValue="false"

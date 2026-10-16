@@ -16,15 +16,14 @@
 #include <vector>
 
 #include "coder.h"
-#include "covox.h"
+#include "sample_rate_factor.h"
 #include "synth_engine.h"
 
 namespace {
 constexpr int kRulexBufferSize = 256;
-constexpr size_t kConfigVolumePercentIndex = 1;
 constexpr size_t kConfigSampleRateIndex = 2;
 constexpr size_t kConfigUseRateBoostIndex = 7;
-constexpr size_t kConfigUseCovoxIndex = 21;
+constexpr size_t kConfigSampleRateFactorIndex = 21;
 constexpr int kFallbackSampleRate = 10000;
 constexpr int kMinSampleRate = 8000;
 constexpr int kMaxSampleRate = 192000;
@@ -54,28 +53,18 @@ public:
 
     Pcm8ToPcm16Adapter(
         int source_sample_rate,
+        int sample_rate_factor,
         int output_sample_rate,
-        bool use_covox,
-        float covox_volume,
         AudioConsumer consumer)
-        : input_sample_rate_(std::clamp(
-              source_sample_rate,
+        : interpolator_(
+              std::clamp(source_sample_rate, kMinSampleRate, kMaxSampleRate),
+              sample_rate_factor),
+          input_sample_rate_(std::clamp(
+              interpolator_.output_sample_rate(),
               kMinSampleRate,
               kMaxSampleRate)),
           output_sample_rate_(output_sample_rate),
-          use_covox_(use_covox),
-          covox_volume_(std::clamp(covox_volume, 0.0F, 1.0F)),
           consumer_(std::move(consumer)) {
-        if (use_covox_) {
-            covox_linear_init(
-                &covox_state_,
-                static_cast<std::uint32_t>(std::clamp(
-                    source_sample_rate,
-                    kMinSampleRate,
-                    kMaxSampleRate)),
-                static_cast<std::uint32_t>(output_sample_rate_));
-            return;
-        }
         if (input_sample_rate_ != output_sample_rate_) {
             BuildFilter();
         }
@@ -92,18 +81,15 @@ public:
         if (!valid() || !pcm8 || size == 0) {
             return size == 0 && valid();
         }
-        if (use_covox_) {
-            return PushCovoxPcm8(pcm8, size);
-        }
-
-        if (input_sample_rate_ == output_sample_rate_) {
+        if (!interpolator_.active() && input_sample_rate_ == output_sample_rate_) {
             return EmitPcm8AsPcm16(pcm8, size);
         }
 
-        input_.reserve(input_.size() + size);
+        source_.resize(size);
         for (size_t index = 0; index < size; ++index) {
-            input_.push_back(static_cast<float>(static_cast<int>(pcm8[index]) - 128) / 128.0f);
+            source_[index] = static_cast<float>(static_cast<int>(pcm8[index]) - 128) / 128.0f;
         }
+        interpolator_.Process(source_.data(), source_.size(), input_);
         return Process(false);
     }
 
@@ -111,20 +97,18 @@ public:
         if (!valid() || !pcm16_bytes || size == 0 || size % sizeof(std::int16_t) != 0) {
             return size == 0 && valid();
         }
-        if (use_covox_) {
-            return PushCovoxPcm16(pcm16_bytes, size);
-        }
-        if (input_sample_rate_ == output_sample_rate_) {
+        if (!interpolator_.active() && input_sample_rate_ == output_sample_rate_) {
             return consumer_(pcm16_bytes, size);
         }
 
         const size_t sample_count = size / sizeof(std::int16_t);
-        input_.reserve(input_.size() + sample_count);
+        source_.resize(sample_count);
         for (size_t index = 0; index < sample_count; ++index) {
             std::int16_t sample = 0;
             std::memcpy(&sample, pcm16_bytes + index * sizeof(sample), sizeof(sample));
-            input_.push_back(static_cast<float>(sample) / 32768.0f);
+            source_[index] = static_cast<float>(sample) / 32768.0f;
         }
+        interpolator_.Process(source_.data(), source_.size(), input_);
         return Process(false);
     }
 
@@ -132,69 +116,10 @@ public:
         if (!valid()) {
             return false;
         }
-        if (use_covox_) {
-            covox_output_.resize(32);
-            const size_t produced = covox_linear_flush(
-                &covox_state_,
-                covox_output_.data(),
-                covox_output_.size());
-            return produced == 0 || EmitPcm16(covox_output_.data(), produced);
-        }
         return Process(true);
     }
 
 private:
-    bool PushCovoxPcm8(const std::uint8_t* pcm8, size_t size) {
-        covox_input_.resize(size);
-        for (size_t index = 0; index < size; ++index) {
-            covox_input_[index] = static_cast<std::int8_t>(static_cast<int>(pcm8[index]) - 128);
-        }
-        return ProcessCovoxInput();
-    }
-
-    bool PushCovoxPcm16(const std::uint8_t* pcm16_bytes, size_t size) {
-        const size_t sample_count = size / sizeof(std::int16_t);
-        covox_input_.resize(sample_count);
-        for (size_t index = 0; index < sample_count; ++index) {
-            std::int16_t sample = 0;
-            std::memcpy(&sample, pcm16_bytes + index * sizeof(sample), sizeof(sample));
-            const std::uint8_t high_byte = static_cast<std::uint8_t>(
-                static_cast<std::uint16_t>(sample) >> 8U);
-            std::memcpy(&covox_input_[index], &high_byte, sizeof(high_byte));
-        }
-        return ProcessCovoxInput();
-    }
-
-    bool ProcessCovoxInput() {
-        size_t consumed_total = 0;
-        while (consumed_total < covox_input_.size()) {
-            const size_t remaining = covox_input_.size() - consumed_total;
-            const size_t output_capacity = std::max<size_t>(
-                256,
-                ((remaining + 2U) * static_cast<size_t>(covox_state_.output_rate)) /
-                    static_cast<size_t>(covox_state_.input_rate) + 8U);
-            covox_output_.resize(output_capacity);
-            size_t consumed = 0;
-            const size_t produced = covox_linear_process(
-                &covox_state_,
-                covox_input_.data() + consumed_total,
-                remaining,
-                covox_output_.data(),
-                covox_output_.size(),
-                covox_volume_,
-                &consumed);
-            consumed_total += consumed;
-            if (produced > 0 && !EmitPcm16(covox_output_.data(), produced)) {
-                return false;
-            }
-            if (consumed == 0 && produced == 0) {
-                return false;
-            }
-        }
-        covox_input_.clear();
-        return true;
-    }
-
     bool EmitPcm8AsPcm16(const std::uint8_t* pcm8, size_t size) {
         output_.resize(size);
         for (size_t index = 0; index < size; ++index) {
@@ -302,21 +227,18 @@ private:
         return consumer_(reinterpret_cast<const std::uint8_t*>(pcm16), sample_count * sizeof(std::int16_t));
     }
 
+    SampleRateFactorInterpolator interpolator_;
     int input_sample_rate_;
     int output_sample_rate_;
-    bool use_covox_;
-    float covox_volume_;
     AudioConsumer consumer_;
     bool valid_ = true;
     static constexpr int kHalfTapCount = 16;
     static constexpr int kTapCount = kHalfTapCount * 2;
     static constexpr int kPhaseCount = 512;
+    std::vector<float> source_;
     std::vector<float> input_;
     std::vector<float> coefficients_;
     std::vector<std::int16_t> output_;
-    covox_linear_state_t covox_state_{};
-    std::vector<std::int8_t> covox_input_;
-    std::vector<std::int16_t> covox_output_;
     double input_position_ = 0.0;
 };
 
@@ -477,20 +399,17 @@ Java_ru_hlebushek_RuTTS_engine_NativeRutts_nativeSynthesizeStreamingRaw(
         : kFallbackSampleRate;
     const bool useRateBoost = config.size() > kConfigUseRateBoostIndex &&
         config[kConfigUseRateBoostIndex] != 0;
-    const bool useCovox = config.size() > kConfigUseCovoxIndex &&
-        config[kConfigUseCovoxIndex] != 0;
-    const int volumePercent = config.size() > kConfigVolumePercentIndex
-        ? std::clamp(config[kConfigVolumePercentIndex], 0, 100)
-        : 100;
+    const int sampleRateFactor = config.size() > kConfigSampleRateFactorIndex
+        ? config[kConfigSampleRateFactorIndex]
+        : 1;
     const int outputSampleRateClamped = std::clamp(
         static_cast<int>(outputSampleRate),
         kMinSampleRate,
         kMaxSampleRate);
     Pcm8ToPcm16Adapter adapter(
         sourceSampleRate,
+        sampleRateFactor,
         outputSampleRateClamped,
-        useCovox,
-        static_cast<float>(volumePercent) / 100.0F,
         emitPcm16);
     if (!adapter.valid()) {
         env->DeleteLocalRef(reusableChunk);
