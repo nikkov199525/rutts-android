@@ -10,13 +10,12 @@
 
 extern "C" {
 #include "covox.h"
-#include "samplerate.h"
 #include "ru_tts.h"
 #include "sonic.h"
 }
 
 namespace {
-constexpr int kExpectedConfigSize = 24;
+constexpr int kExpectedConfigSize = 22;
 constexpr int kSonicChannelCount = 1;
 constexpr int kSonicReadBufferSamples = 4096;
 constexpr float kRateBoostFactor = 2.0F;
@@ -25,27 +24,25 @@ enum ConfigIndex : int {
     CI_SPEECH_RATE = 0,
     CI_VOLUME_PERCENT = 1,
     CI_SAMPLES_PER_SEC = 2,
-    CI_INTERPOLATION_MULTIPLIER = 3,
-    CI_INTERPOLATION_ALGORITHM = 4,
-    CI_WAVE_BUFFER_SIZE = 5,
-    CI_SILENCE_AT_BEGIN = 6,
-    CI_SILENCE_AT_END = 7,
-    CI_USE_ALTERNATIVE_VOICE = 8,
-    CI_USE_RATE_BOOST = 9,
-    CI_DEC_SEP_POINT = 10,
-    CI_DEC_SEP_COMMA = 11,
-    CI_GENERAL_GAP_FACTOR = 12,
-    CI_COMMA_GAP_FACTOR = 13,
-    CI_DOT_GAP_FACTOR = 14,
-    CI_SEMICOLON_GAP_FACTOR = 15,
-    CI_COLON_GAP_FACTOR = 16,
-    CI_QUESTION_GAP_FACTOR = 17,
-    CI_EXCLAMATION_GAP_FACTOR = 18,
-    CI_INTONATIONAL_GAP_FACTOR = 19,
-    CI_VOICE_PITCH = 20,
-    CI_INTONATION = 21,
-    CI_USE_NEW_RATE_ALGORITHM = 22,
-    CI_USE_COVOX = 23
+    CI_WAVE_BUFFER_SIZE = 3,
+    CI_SILENCE_AT_BEGIN = 4,
+    CI_SILENCE_AT_END = 5,
+    CI_USE_ALTERNATIVE_VOICE = 6,
+    CI_USE_RATE_BOOST = 7,
+    CI_DEC_SEP_POINT = 8,
+    CI_DEC_SEP_COMMA = 9,
+    CI_GENERAL_GAP_FACTOR = 10,
+    CI_COMMA_GAP_FACTOR = 11,
+    CI_DOT_GAP_FACTOR = 12,
+    CI_SEMICOLON_GAP_FACTOR = 13,
+    CI_COLON_GAP_FACTOR = 14,
+    CI_QUESTION_GAP_FACTOR = 15,
+    CI_EXCLAMATION_GAP_FACTOR = 16,
+    CI_INTONATIONAL_GAP_FACTOR = 17,
+    CI_VOICE_PITCH = 18,
+    CI_INTONATION = 19,
+    CI_USE_NEW_RATE_ALGORITHM = 20,
+    CI_USE_COVOX = 21
 };
 
 struct CallbackState {
@@ -64,16 +61,6 @@ struct StreamingCallbackState {
 
 int ClampInt(int value, int min_value, int max_value) {
     return std::clamp(value, min_value, max_value);
-}
-
-int NormalizeInterpolationMultiplier(int value) {
-    if (value < 2) return 1;
-    if (value > 2) return 4;
-    return 2;
-}
-
-int ToSrcConverter(int algorithm) {
-    return algorithm == 1 ? SRC_ZERO_ORDER_HOLD : SRC_LINEAR;
 }
 
 bool IsCurrentGeneration(
@@ -260,55 +247,6 @@ std::vector<std::int16_t> ConvertPcm16WithCovox(
     return ConvertPcm8WithCovox(pcm8, input_rate, output_rate, gain_percent);
 }
 
-std::vector<std::int16_t> ResampleAudio(
-    const std::vector<std::int16_t>& input,
-    int input_rate,
-    int output_rate,
-    int converter_type) {
-    if (input.empty()) {
-        return {};
-    }
-    if (input_rate == output_rate) {
-        return input;
-    }
-
-    if (input.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
-        return input;
-    }
-
-    std::vector<float> input_float(input.size());
-    src_short_to_float_array(input.data(), input_float.data(), static_cast<int>(input.size()));
-
-    const double ratio = static_cast<double>(output_rate) / static_cast<double>(input_rate);
-    if (!src_is_valid_ratio(ratio)) {
-        return input;
-    }
-
-    size_t output_capacity = static_cast<size_t>(std::ceil(static_cast<double>(input.size()) * ratio)) + 64;
-    output_capacity = std::max<size_t>(output_capacity, 64);
-    if (output_capacity > static_cast<size_t>(std::numeric_limits<long>::max())) {
-        return input;
-    }
-
-    std::vector<float> output_float(output_capacity);
-    SRC_DATA data{};
-    data.data_in = input_float.data();
-    data.input_frames = static_cast<long>(input.size());
-    data.data_out = output_float.data();
-    data.output_frames = static_cast<long>(output_capacity);
-    data.src_ratio = ratio;
-    data.end_of_input = 1;
-
-    if (src_simple(&data, converter_type, 1) != 0 || data.output_frames_gen <= 0) {
-        return input;
-    }
-
-    const size_t output_frames = static_cast<size_t>(data.output_frames_gen);
-    std::vector<std::int16_t> output(output_frames);
-    src_float_to_short_array(output_float.data(), output.data(), static_cast<int>(output_frames));
-    return output;
-}
-
 size_t SilenceSampleCount(int sample_rate, int milliseconds) {
     if (milliseconds <= 0 || sample_rate <= 0) {
         return 0;
@@ -433,8 +371,7 @@ std::vector<std::uint8_t> SynthEngine::Synthesize(const std::string& text, const
     const int volume_percent = ClampInt(config[CI_VOLUME_PERCENT], 0, 100);
     const int samples_per_sec = ClampInt(config[CI_SAMPLES_PER_SEC], 8000, 16000);
     const bool use_covox = config[CI_USE_COVOX] != 0;
-    const int interpolation_multiplier = NormalizeInterpolationMultiplier(config[CI_INTERPOLATION_MULTIPLIER]);
-    const int output_rate = ClampInt(samples_per_sec * interpolation_multiplier, 8000, 192000);
+    const int output_rate = samples_per_sec;
     const int wave_buffer_size = ClampInt(config[CI_WAVE_BUFFER_SIZE], 128, 1024000);
     const int silence_at_begin = ClampInt(config[CI_SILENCE_AT_BEGIN], 0, 100);
     const int silence_at_end = ClampInt(config[CI_SILENCE_AT_END], 0, 100);
@@ -481,13 +418,6 @@ std::vector<std::uint8_t> SynthEngine::Synthesize(const std::string& text, const
             volume_percent);
     } else {
         pcm16 = ConvertRawAudio(raw_audio, volume_percent);
-    }
-    if (!use_covox) {
-        pcm16 = ResampleAudio(
-            pcm16,
-            samples_per_sec,
-            output_rate,
-            ToSrcConverter(config[CI_INTERPOLATION_ALGORITHM]));
     }
 
     if (!IsCurrent(request_generation)) {

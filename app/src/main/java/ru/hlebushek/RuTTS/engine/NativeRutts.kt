@@ -17,8 +17,7 @@ object NativeRutts {
         config: IntArray,
         callback: SynthesisCallback,
         outputSampleRate: Int,
-        maxChunkSize: Int,
-        useSoftResampling: Boolean
+        maxChunkSize: Int
     ): Boolean
 
     @JvmStatic
@@ -54,8 +53,7 @@ object NativeRutts {
             streamingConfig,
             callback,
             outputSampleRate,
-            maxChunkSize,
-            config.useSoftResampling
+            maxChunkSize
         )
     }
 
@@ -74,8 +72,6 @@ object NativeRutts {
             runtimeSettings.speechRate.coerceIn(20, 500),
             runtimeSettings.volumePercent.coerceIn(0, 100),
             config.samplesPerSec,
-            config.interpolationMultiplier,
-            config.interpolationAlgorithm.nativeValue,
             config.waveBufferSize,
             config.silenceAtBegin,
             config.silenceAtEnd,
@@ -103,7 +99,7 @@ object NativeRutts {
     internal fun streamingWaveBufferSize(maxChunkSize: Int): Int =
         maxChunkSize.coerceAtLeast(minStreamingWaveBufferSize)
 
-    private const val streamingWaveBufferConfigIndex = 5
+    private const val streamingWaveBufferConfigIndex = 3
     private const val minStreamingWaveBufferSize = 128
 
 }

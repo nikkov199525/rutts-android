@@ -145,35 +145,14 @@
     </PreferenceCategory>
 
     <PreferenceCategory
-        app:key="category_interpolation"
-        app:title="@string/settings_category_interpolation">
-
-        <ListPreference
-            app:defaultValue="1"
-            app:entries="@array/interpolation_multiplier_entries"
-            app:entryValues="@array/interpolation_multiplier_values"
-            app:key="interpolation_multiplier"
-            app:title="@string/pref_interpolation_multiplier"
-            app:useSimpleSummaryProvider="true" />
-
-        <ListPreference
-            app:defaultValue="0"
-            app:entries="@array/interpolation_algorithm_entries"
-            app:entryValues="@array/interpolation_algorithm_values"
-            app:key="interpolation_algorithm"
-            app:title="@string/pref_interpolation_algorithm"
-            app:useSimpleSummaryProvider="true" />
+        app:key="category_advanced"
+        app:title="@string/settings_category_advanced">
 
         <CheckBoxPreference
             app:defaultValue="false"
             app:key="use_covox"
             app:summary="@string/pref_use_covox_summary"
             app:title="@string/pref_use_covox" />
-    </PreferenceCategory>
-
-    <PreferenceCategory
-        app:key="category_advanced"
-        app:title="@string/settings_category_advanced">
 
         <CheckBoxPreference
             app:defaultValue="false"
@@ -184,11 +163,6 @@
             app:defaultValue="true"
             app:key="dec_sep_comma"
             app:title="@string/pref_dec_sep_comma" />
-
-        <CheckBoxPreference
-            app:defaultValue="false"
-            app:key="use_soft_resampling"
-            app:title="@string/pref_use_soft_resampling" />
 
         <SeekBarPreference
             app:defaultValue="0"

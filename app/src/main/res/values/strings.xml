@@ -4,7 +4,6 @@
 
     <string name="settings_category_general">Основное</string>
     <string name="settings_category_gaps">Паузы</string>
-    <string name="settings_category_interpolation">Интерполяция</string>
     <string name="settings_category_advanced">Дополнительно</string>
     <string name="settings_category_dictionaries">Замены символов</string>
     <string name="settings_category_appearance">Внешний вид</string>
@@ -41,11 +40,8 @@
     <string name="pref_intonational_gap_factor">Интонационная пауза</string>
     <string name="pref_dec_sep_point">Использовать точку как десятичный разделитель</string>
     <string name="pref_dec_sep_comma">Использовать запятую как десятичный разделитель</string>
-    <string name="pref_interpolation_multiplier">Множитель интерполяции</string>
-    <string name="pref_interpolation_algorithm">Алгоритм интерполяции</string>
     <string name="pref_use_covox">Звучать как через Covox</string>
     <string name="pref_use_covox_summary">8-битный выход и линейное восстановление Covox/DOSBox с выбранной частотой дискретизации.</string>
-    <string name="pref_use_soft_resampling">Мягкое новое звучание (экспериментальная настройка)</string>
     <string name="pref_silence_at_begin">Тишина в начале (мс)</string>
     <string name="pref_silence_at_end">Тишина в конце (мс)</string>
 
